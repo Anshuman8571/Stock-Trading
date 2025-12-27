@@ -1,13 +1,15 @@
+require("dotenv").config();
 console.log("Worker file is loaded.....")
 const { Worker } = require("bullmq")
 const { executeOrder } = require("../modules/orders/order.service")
-    
 console.log("Worker depenencies loaded")
 
 const worker = new Worker("order-queue", async (job) => {
         console.log("Worker got picked up:", job.data)
-        const { orderId } = job.data.orderId;
+        const { orderId } = job.data;
+        console.log("orderId: ", orderId)
         await executeOrder(orderId);
+        console.log("Completed Execution.")
     },
     {
         connection: {

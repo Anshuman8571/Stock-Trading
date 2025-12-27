@@ -19,4 +19,22 @@ async function getHoldings(userId) {
     return rows;
 }
 
-module.exports = { getHoldings,getOrCreatePortfolio }
+async function updateHoldings(userId, symbol, quantity, price) {
+    const portfolio  = await getOrCreatePortfolio(userId)
+    const result = await db.query(`SELECT * FROM holdings WHERE portfolio_id = $1 AND symbol = $2`, [ portfolio.id, symbol ])
+    if(result.rows.length === 0){
+        await db.query(`INSERT INTO holdings (id, portfolio_id, symbol, quantity, avg_price) VALUES ($1, $2, $3, $4, $5)`, [ uuidv4(), portfolio.id, symbol, quantity, price ]);
+        console.log("The order is added.")
+        return;
+    }
+    const holding = result.rows[0];
+    const totalOldValue = holding.quantity * holding.avg_price;
+    const totalNewValue = quantity * price;
+
+    const newQuantity = holding.quantity + quantity;
+    const newAvgPrice = (totalOldValue + totalNewValue) / newQuantity;
+
+    await db.query(`UPDATE holdings SET quantity = $1, avg_price = $2 WHERE id =$3`, [ newQuantity, newAvgPrice, holding.id ])
+    console.log("The order gets updated.")
+}
+module.exports = { getHoldings, getOrCreatePortfolio, updateHoldings }
