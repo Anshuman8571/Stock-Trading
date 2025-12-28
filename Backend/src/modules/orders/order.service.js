@@ -1,13 +1,13 @@
 const db = require("../../config/db")
 const { v4: uuidv4 } = require("uuid")
-const { getOrCreatePortfolio } = require("../portfolio/portfolio.service")
+const { getOrCreatePortfolio, reduceHoldings,updateHoldings } = require("../portfolio/portfolio.service")
 const { getLivePrice } = require("../market/market.service")
-const { updateHoldings } = require("../portfolio/portfolio.service") 
+// const { updateHoldings } = require("../portfolio/portfolio.service") 
 
 
-async function createPendingOrder(userId, symbol, quantity) {
+async function createPendingOrder(userId, symbol, quantity, side) {
     const orderId = uuidv4();
-    const result = await db.query(`INSERT INTO orders (id, user_id, symbol, quantity, status) VALUES ($1, $2, $3, $4, 'PENDING') RETURNING id`, [ orderId, userId, symbol, quantity ] );
+    const result = await db.query(`INSERT INTO orders (id, user_id, symbol, quantity, side,  status) VALUES ($1, $2, $3, $4, $5, 'PENDING') RETURNING id`, [ orderId, userId, symbol, quantity, side ] );
     return { id: result.rows[0].id }
 }
 //Separated executution logic
@@ -15,12 +15,18 @@ async function executeOrder(orderId) {
     console.log("Execution starts....")
     const res = await db.query(`SELECT * FROM orders WHERE id = $1`, [ orderId ])
     const order = res.rows[0]
+    if(order.status != "PENDING") {
+        console.log(`Skipping order ${orderId}, status=${order.status}`)
+        return
+    }
     if(!order) throw new Error("Order not found");
     try {
         const { price } = await getLivePrice(order.symbol);
         // const { price } = 100;
         console.log("Price: ",price)
-        await updateHoldings( order.user_id, order.symbol, order.quantity, price)
+
+        if(order.side === 'BUY') await updateHoldings( order.user_id, order.symbol, order.quantity, price)
+        if(order.side === 'SELL') await reduceHoldings( order.user_id, order.symbol, order.quantity, price)
         console.log("The order gets executed.")
         await db.query(`UPDATE orders SET status = 'EXECUTED', price = $1 WHERE id = $2`, [ price, orderId ])
     } catch (error) {

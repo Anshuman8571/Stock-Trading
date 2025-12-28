@@ -37,4 +37,18 @@ async function updateHoldings(userId, symbol, quantity, price) {
     await db.query(`UPDATE holdings SET quantity = $1, avg_price = $2 WHERE id =$3`, [ newQuantity, newAvgPrice, holding.id ])
     console.log("The order gets updated.")
 }
-module.exports = { getHoldings, getOrCreatePortfolio, updateHoldings }
+
+async function reduceHoldings(userId, symbol, quantity) {
+    const portfolio = await getOrCreatePortfolio(userId);
+    const result = await db.query(`SELECT * FROM holdings WHERE portfolio_id = $1 AND symbol = $2`, [ portfolio.id, symbol ]);
+
+    if(result.rows.length === 0) throw new Error("No holdings available to sell")
+    
+    const holding = result.rows[0];
+    if( holding.quantity < quantity ) throw new Error("Insufficient quantity to sell.")
+    
+    const remainingQty = holding.quantity - quantity;
+    if(remainingQty === 0) await db.query(`DELETE FROM holdings WHERE id = $1`, [ holding.id ])
+    else await db.query(`UPDATE holdings SET quantity = $1 WHERE id = $2`, [ remainingQty, holding.id ])
+}
+module.exports = { getHoldings, getOrCreatePortfolio, updateHoldings, reduceHoldings }
