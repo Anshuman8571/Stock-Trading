@@ -14,6 +14,7 @@ async function getPortfolioAnalytics(userId) {
         investedValue += invested;
 
         const { price: currentPrice } = await getLivePrice(holding.symbol);
+        // if(!price || isNaN(price) )
         const current = holding.quantity * currentPrice;
         currentValue += current;
 
@@ -26,14 +27,14 @@ async function getPortfolioAnalytics(userId) {
             current_value: current
         }); 
 
-        const pnl = currentValue - investedValue;
-
-        const exposure = breakdown.map(item => ({
-            symbol:item.symbol,
-            exposure_percentage: currentValue === 0? 0: ((item.current_value/currentValue) * 100).toFixed(2)
-        }))
-
+        
     }
+    const pnl = currentValue - investedValue;
+
+    const exposure = breakdown.map(item => ({
+        symbol:item.symbol,
+        exposure_percentage: currentValue === 0? 0: ((item.current_value/currentValue) * 100).toFixed(2)
+    }))
     return { investedValue, currentValue, pnl, exposure, breakdown }
 }
 
