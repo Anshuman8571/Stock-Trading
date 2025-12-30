@@ -13,8 +13,7 @@ const worker = new Worker("order-queue", async (job) => {
     },
     {
         connection: {
-            host: "localhost",
-            port: 6379
+            url: process.env.REDIS_URL
         }
     }
 )

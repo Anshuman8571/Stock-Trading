@@ -8,6 +8,6 @@ CREATE TABLE holdings(
     id UUID PRIMARY KEY,
     portfolio_id UUID REFERENCES portfolios(id) ON DELETE CASCADE,
     symbol VARCHAR(20) NOT NULL,
-    quantity INT NOT NULL,
-    avg_price NUMERIC NOT NULL
+    quantity INT NOT NULL CHECK (quantity > 0),
+    avg_price NUMERIC CHECK (avg_price >= 0)
 );

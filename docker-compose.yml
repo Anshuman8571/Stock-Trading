@@ -1,0 +1,53 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: trading-postgres
+    environment: 
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: GattaRoad
+      POSTGRES_DB: stock-trading
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./Backend/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+      - pg_data:/var/lib/postgresql/data
+    
+  redis:
+    image: redis:7
+    container_name: trading-redis
+    ports:
+      - "6379:6379"
+    
+  backend:
+    build: ./Backend
+    container_name: trading-backend
+    command: node server.js
+    env_file: 
+      - ./Backend/.env
+    ports:
+      - "3000:3000"
+    volumes: 
+      - ./Backend:/app
+      - /app/node_modules
+    depends_on:
+      - postgres
+      - redis
+
+  worker:
+    build: ./Backend
+    container_name: trading-worker
+    command: node src/workers/order.worker.js
+    env_file:
+      - ./Backend/.env
+    volumes: 
+      - ./Backend:/app
+      - /app/node_modules
+    depends_on:
+      - postgres
+      - redis
+
+
+volumes:
+  pg_data:
