@@ -13,54 +13,73 @@ async function createPendingOrder(userId, symbol, quantity, side) {
 //Separated executution logic
 async function executeOrder(orderId) {
     console.log("Execution starts....")
-    const res = await db.query(`SELECT * FROM orders WHERE id = $1`, [ orderId ])
+    
+    const res = await client.query(`SELECT * FROM orders WHERE id = $1 `, [ orderId ])
     const order = res.rows[0]
-    if(order.status != "PENDING") {
+    if(!order) throw new Error("Order Not Found.");
+    if(order.status !== "PENDING") {
+        await client.query("ROLLBACK");
         console.log(`Skipping order ${orderId}, status=${order.status}`)
         return
     }
-    if(!order) throw new Error("Order not found");
-    try {
-        const { price } = await getLivePrice(order.symbol);
-        // const { price } = 100;
+    
+    const { price } = await getLivePrice(order.symbol);
+    if(!price || !Number.isFinite(price)) throw new Error("Invalid market price.")
         console.log("Price: ",price)
+    
+    const client = await db.getClient();
+    
+    try {
 
-        if(order.side === 'BUY') await updateHoldings( order.user_id, order.symbol, order.quantity, price)
-        if(order.side === 'SELL') await reduceHoldings( order.user_id, order.symbol, order.quantity, price)
+        await client.query("BEGIN");
+
+        const lockRes = await client.query(`SELECT status FROM orders WHERE id = $1 FOR UPDATE`, [ orderId ])
+        if(lockRes.rows[0].status !== "PENDING"){
+            await client.query("ROLLBACK")
+            return;
+        }
+
+        if(order.side === 'BUY') await updateHoldings( client, order.user_id, order.symbol, order.quantity, price)
+        else if(order.side === 'SELL') await reduceHoldings( client, order.user_id, order.symbol, order.quantity)
         console.log("The order gets executed.")
-        await db.query(`UPDATE orders SET status = 'EXECUTED', price = $1 WHERE id = $2`, [ price, orderId ])
+        await client.query(`UPDATE orders SET status = 'EXECUTED', price = $1 WHERE id = $2`, [ price, orderId ] )
+        await client.query(`COMMIT`)
+        console.log("order executed:", orderId)
     } catch (error) {
         console.log("The order get Failed.")
-        await db.query(`UPDATE orders SET status = 'FAILED' WHERE id = $1`, [ orderId ])
-        throw error
+        await client.query("ROLLBACK")
+        await client.query(`UPDATE orders SET status = 'FAILED' WHERE id = $1`, [ orderId ] )
+        throw error;
+    } finally {
+        client.release();
     }
 }
 
 
-async function placeSellOrder(userId, symbol, quantity, price) {
-    const portfolio = await getOrCreatePortfolio(userId);
-    const { rows } = await db.query(`SELECT* FROM holdings WHERE portfolio_id = $1 AND symbol = $2`, [ portfolio.id, symbol ])
-    if(rows.length === 0 || rows[0].quantity < quantity){
-        const err = new Error("Not enough quantity to sell");
-        err.status = 400;
-        throw err;
-    } 
-    const orderId = uuidv4();
-    await db.query(`INSERT INTO orders (id, user_id, symbol, quantity, price, side, status) VALUES ($1, $2, $3, $4, $5,'SELL', 'PENDING')`, [ orderId, userId, symbol, quantity, price ]);
+// async function placeSellOrder(client, userId, symbol, quantity, price) {
+//     const portfolio = await getOrCreatePortfolio(userId);
+//     const { rows } = await client.query(`SELECT* FROM holdings WHERE portfolio_id = $1 AND symbol = $2`, [ portfolio.id, symbol ])
+//     if(rows.length === 0 || rows[0].quantity < quantity){
+//         const err = new Error("Not enough quantity to sell");
+//         err.status = 400;
+//         throw err;
+//     } 
+//     const orderId = uuidv4();
+//     await client.query(`INSERT INTO orders (id, user_id, symbol, quantity, price, side, status) VALUES ($1, $2, $3, $4, $5,'SELL', 'PENDING')`, [ orderId, userId, symbol, quantity, price ]);
 
-    const remainingQty = rows[0].quantity - quantity;
+//     const remainingQty = rows[0].quantity - quantity;
 
-    if((remainingQty === 0)){
-        await db.query(`DELETE FROM holdings WHERE id = $1`, [ rows[0].id ]);
-    } else {
-        await db.query(`UPDATE holdings SET quantity = $1 WHERE id = $2`, [ remainingQty, rows[0].id ])
+//     if((remainingQty === 0)){
+//         await client.query(`DELETE FROM holdings WHERE id = $1`, [ rows[0].id ]);
+//     } else {
+//         await client.query(`UPDATE holdings SET quantity = $1 WHERE id = $2`, [ remainingQty, rows[0].id ])
         
-    }
+//     }
 
-    await db.query(`UPDATE orders SET status = 'EXECUTED' WHERE id  = $1`, [ orderId ])
-    const sellOrderRow = await db.query(`SELECT * FROM orders WHERE id = $1`, [ orderId ])
-    return sellOrderRow.rows;
-}
+//     await client.query(`UPDATE orders SET status = 'EXECUTED' WHERE id  = $1`, [ orderId ])
+//     const sellOrderRow = await client.query(`SELECT * FROM orders WHERE id = $1`, [ orderId ])
+//     return sellOrderRow.rows;
+// }
 
 
 async function getOrderHistory(userId) {
@@ -68,4 +87,4 @@ async function getOrderHistory(userId) {
     return rows;
 }
 
-module.exports = { createPendingOrder, placeSellOrder, getOrderHistory, executeOrder }
+module.exports = { createPendingOrder, getOrderHistory, executeOrder }

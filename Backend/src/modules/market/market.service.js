@@ -20,6 +20,7 @@ async function getLivePrice(symbol) {
     console.log("Price", cachedPrice)
 
     const price = await fetchPriceFromAPI(symbol);
+    console.log("Price from fetchPriceFromAPI", price)
     await redisClient.setEx(cachedKey, PRICE_TTL, price.toString());
     return { price };
 }

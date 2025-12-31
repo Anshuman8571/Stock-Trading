@@ -23,7 +23,7 @@ services:
   backend:
     build: ./Backend
     container_name: trading-backend
-    command: node server.js
+    command: npm run dev
     env_file: 
       - ./Backend/.env
     ports:
