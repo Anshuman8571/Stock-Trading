@@ -31,7 +31,7 @@ async function sellStock(req, res, next) {
         if(!symbol || typeof symbol !== "string") return res.status(400).json({ error: "Invalid Symbol" })
         if(!Number.isInteger(quantity) || quantity <= 0) return res.status(400).json({ error: "Quantity must be positive and greater than 0." })
         const userId = req.user.userId;
-        const order = await createPendingOrder(clientInformation, userId, symbol, quantity, 'SELL')
+        const order = await createPendingOrder( userId, symbol, quantity, 'SELL' )
         await orderQueue.add("execute-order",{
             orderId: order.id
         })
