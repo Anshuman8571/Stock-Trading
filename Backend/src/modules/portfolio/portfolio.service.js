@@ -29,6 +29,7 @@ async function updateHoldings(client,userId, symbol, quantity, price) {
         return;
     }
     const holding = result.rows[0];
+    console.log("holding from updateHoldings",holding)
     const totalOldValue = holding.quantity * holding.avg_price;
     const totalNewValue = quantity * price;
 

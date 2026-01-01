@@ -6,31 +6,32 @@ const { getLivePrice } = require("../market/market.service")
 
 
 async function createPendingOrder(userId, symbol, quantity, side) {
+    const normalisedSymbol = symbol.trim().toUpperCase();
     const orderId = uuidv4();
-    const result = await db.query(`INSERT INTO orders (id, user_id, symbol, quantity, side,  status) VALUES ($1, $2, $3, $4, $5, 'PENDING') RETURNING id`, [ orderId, userId, symbol, quantity, side ] );
+    const result = await db.query(`INSERT INTO orders (id, user_id, symbol, quantity, side,  status) VALUES ($1, $2, $3, $4, $5, 'PENDING') RETURNING id`, [ orderId, userId, normalisedSymbol, quantity, side ] );
+    console.log("createPendingOrder:", result)
     return { id: result.rows[0].id }
 }
 //Separated executution logic
 async function executeOrder(orderId) {
     console.log("Execution starts....")
-    
-    const res = await client.query(`SELECT * FROM orders WHERE id = $1 `, [ orderId ])
+
+    const res = await db.query(`SELECT * FROM orders WHERE id = $1 `, [ orderId ])
     const order = res.rows[0]
     if(!order) throw new Error("Order Not Found.");
     if(order.status !== "PENDING") {
-        await client.query("ROLLBACK");
         console.log(`Skipping order ${orderId}, status=${order.status}`)
         return
     }
     
     const { price } = await getLivePrice(order.symbol);
-    if(!price || !Number.isFinite(price)) throw new Error("Invalid market price.")
-        console.log("Price: ",price)
-    
-    const client = await db.getClient();
+    const orderPrice = price.price;
+    if(!orderPrice || !Number.isFinite(orderPrice)) throw new Error("Invalid market price.")
+    console.log("Price: ",price)
+    let client = null;
     
     try {
-
+        client = await db.getClient();
         await client.query("BEGIN");
 
         const lockRes = await client.query(`SELECT status FROM orders WHERE id = $1 FOR UPDATE`, [ orderId ])
@@ -38,20 +39,22 @@ async function executeOrder(orderId) {
             await client.query("ROLLBACK")
             return;
         }
-
-        if(order.side === 'BUY') await updateHoldings( client, order.user_id, order.symbol, order.quantity, price)
+        console.log("Updating Order")
+        if(order.side === 'BUY') await updateHoldings( client, order.user_id, order.symbol, order.quantity, orderPrice)
         else if(order.side === 'SELL') await reduceHoldings( client, order.user_id, order.symbol, order.quantity)
         console.log("The order gets executed.")
-        await client.query(`UPDATE orders SET status = 'EXECUTED', price = $1 WHERE id = $2`, [ price, orderId ] )
+        await client.query(`UPDATE orders SET status = 'EXECUTED', price = $1 WHERE id = $2`, [ orderPrice, orderId ] )
         await client.query(`COMMIT`)
         console.log("order executed:", orderId)
     } catch (error) {
         console.log("The order get Failed.")
-        await client.query("ROLLBACK")
-        await client.query(`UPDATE orders SET status = 'FAILED' WHERE id = $1`, [ orderId ] )
+        if(client){
+            await client.query("ROLLBACK")
+            await client.query(`UPDATE orders SET status = 'FAILED' WHERE id = $1`, [ orderId ] )
+        }
         throw error;
     } finally {
-        client.release();
+        if(client) client.release();
     }
 }
 

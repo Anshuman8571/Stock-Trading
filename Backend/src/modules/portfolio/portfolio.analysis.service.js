@@ -12,9 +12,10 @@ async function getPortfolioAnalytics(userId) {
     for (const holding of holdings){
         const invested = holding.quantity * holding.avg_price;
         investedValue += invested;
-
-        const { price: currentPrice } = await getLivePrice(holding.symbol);
+        console.log("Holdings from loop",holding)
+        const { price } = await getLivePrice(holding.symbol);
         // if(!price || isNaN(price) )
+        const currentPrice = price.price;
         const current = holding.quantity * currentPrice;
         currentValue += current;
 
