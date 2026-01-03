@@ -33,7 +33,7 @@ async function explainPortfolio(analytics) {
         throw error
     }
 
-    return response;
+
 }
 
 module.exports = { explainPortfolio }

@@ -13,9 +13,9 @@ async function getPortfolioAnalytics(userId) {
         const invested = holding.quantity * holding.avg_price;
         investedValue += invested;
         console.log("Holdings from loop",holding)
-        const { price } = await getLivePrice(holding.symbol);
+        const { price:currentPrice } = await getLivePrice(holding.symbol);
         // if(!price || isNaN(price) )
-        const currentPrice = price.price;
+        console.log("Price.price",currentPrice)
         const current = holding.quantity * currentPrice;
         currentValue += current;
 
@@ -36,6 +36,12 @@ async function getPortfolioAnalytics(userId) {
         symbol:item.symbol,
         exposure_percentage: currentValue === 0? 0: ((item.current_value/currentValue) * 100).toFixed(2)
     }))
+    console.log("InvestedValue",investedValue)
+    console.log("Current Value",currentValue)
+    console.log("Profit and Loss",pnl)
+    console.log("exposure", exposure)
+    console.log("Breakdown", breakdown)
+
     return { investedValue, currentValue, pnl, exposure, breakdown }
 }
 

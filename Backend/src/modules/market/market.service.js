@@ -11,18 +11,19 @@ async function getLivePrice(symbol) {
 
     if(cachedPrice){
         console.log(`Cache HIT for ${symbol} and price ${cachedPrice}`)
-        const price = parseFloat(cachedPrice);
-        if(!isNaN(price) && price > 0 ) return { price }
+        const priceValue = parseFloat(cachedPrice);
+        console.log("CachedPrice:",priceValue)
+        if(!isNaN(priceValue) && priceValue > 0 ) return { price: priceValue }
         await redisClient.del(cachedKey);
     }
     
     console.log(`Cache MISS for ${symbol}`);
-    console.log("Price", cachedPrice)
 
-    const price = await fetchPriceFromAPI(symbol);
-    console.log("Price from fetchPriceFromAPI", price)
-    await redisClient.setEx(cachedKey, PRICE_TTL, price.price.toString());
-    return { price };
+    const apiData = await fetchPriceFromAPI(symbol);
+    const NumericPrice = apiData.price;
+    console.log("NumericPrice from fetchPriceFromAPI", NumericPrice)
+    await redisClient.setEx(cachedKey, PRICE_TTL, NumericPrice.toString());
+    return { price: NumericPrice };
 }
 
 async function fetchPriceFromAPI(symbol) {
@@ -60,7 +61,7 @@ async function fetchPriceFromAPI(symbol) {
 
     const change = latestClose - previousClose;
     const changePercentage = (change/ previousClose) * 100;
-     
+    console.log("LatestClose from market service:",latestClose)
     // if(isNaN(price) || price === null || price <= 0) {
     //     console.log("The price is not legal");
     //     throw new Error("Invalid market price");
