@@ -73,31 +73,16 @@ async function executeOrder(orderId) {
     }
 }
 
-
-// async function placeSellOrder(client, userId, symbol, quantity, price) {
-//     const portfolio = await getOrCreatePortfolio(userId);
-//     const { rows } = await client.query(`SELECT* FROM holdings WHERE portfolio_id = $1 AND symbol = $2`, [ portfolio.id, symbol ])
-//     if(rows.length === 0 || rows[0].quantity < quantity){
-//         const err = new Error("Not enough quantity to sell");
-//         err.status = 400;
-//         throw err;
-//     } 
-//     const orderId = uuidv4();
-//     await client.query(`INSERT INTO orders (id, user_id, symbol, quantity, price, side, status) VALUES ($1, $2, $3, $4, $5,'SELL', 'PENDING')`, [ orderId, userId, symbol, quantity, price ]);
-
-//     const remainingQty = rows[0].quantity - quantity;
-
-//     if((remainingQty === 0)){
-//         await client.query(`DELETE FROM holdings WHERE id = $1`, [ rows[0].id ]);
-//     } else {
-//         await client.query(`UPDATE holdings SET quantity = $1 WHERE id = $2`, [ remainingQty, rows[0].id ])
-        
-//     }
-
-//     await client.query(`UPDATE orders SET status = 'EXECUTED' WHERE id  = $1`, [ orderId ])
-//     const sellOrderRow = await client.query(`SELECT * FROM orders WHERE id = $1`, [ orderId ])
-//     return sellOrderRow.rows;
-// }
+async function cancelOrder(userId, orderId) {
+    const result = await db.query(`UPDATE orders SET status = 'CANCELLED', cancel_reason = 'USER_CANCELLED' WHERE id = $1 AND user_id = $2 AND status = 'PENDING' AND order_type = 'LIMIT' RETURNING id, status`, [ orderId, userId ])
+    if(result.rowCount === 0){
+        const err = new Error ("Order cannot be cancelled (not found, not pending, or not a limit order)");
+        err.status = 400;
+        throw err;
+    }
+    console.log("Order Cancelled Successfully")
+    return result.rows[0];
+}
 
 
 async function getOrderHistory(userId) {
@@ -105,4 +90,4 @@ async function getOrderHistory(userId) {
     return rows;
 }
 
-module.exports = { createPendingOrder, getOrderHistory, executeOrder }
+module.exports = { createPendingOrder, getOrderHistory, executeOrder, cancelOrder }

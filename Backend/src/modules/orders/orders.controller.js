@@ -1,4 +1,4 @@
-const { createPendingOrder, placeSellOrder, getOrderHistory } = require("./order.service");
+const { createPendingOrder, getOrderHistory, cancelOrder } = require("./order.service");
 const { orderQueue } = require("../../queues/order.queue")
 async function buyStock(req, res, next) {
     try {
@@ -62,4 +62,20 @@ async function orderHistory(req, res, next) {
     }
 }
 
-module.exports = { buyStock, sellStock, orderHistory }
+async function cancelMyOrder(req, res, next) {
+    try{
+        const { orderId } = req.params;
+        const userId = req.user.userId;
+        const order = await cancelOrder(userId, orderId)
+
+        res.json({
+            success: true,
+            message: "Order cancelled successfully.",
+            order
+        })
+    } catch(err){
+        next(err)
+    }
+}
+
+module.exports = { buyStock, sellStock, orderHistory, cancelMyOrder }
