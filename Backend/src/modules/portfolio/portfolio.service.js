@@ -20,6 +20,7 @@ async function getHoldings(userId) {
 }
 
 async function updateHoldings(client,userId, symbol, quantity, price) {
+    console.log("Starting updateHoldings")
     const portfolio  = await getOrCreatePortfolio(userId, client)
 
     const result = await client.query(`SELECT * FROM holdings WHERE portfolio_id = $1 AND symbol = $2 FOR UPDATE`, [ portfolio.id, symbol ])

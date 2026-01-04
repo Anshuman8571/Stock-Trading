@@ -5,17 +5,20 @@ const { getLivePrice } = require("../market/market.service")
 // const { updateHoldings } = require("../portfolio/portfolio.service") 
 
 
-async function createPendingOrder(userId, symbol, quantity, side) {
+async function createPendingOrder(userId, symbol, quantity, side, orderType = "MARKET", limitPrice=null, validForMinutes = 30) {
     const normalisedSymbol = symbol.trim().toUpperCase();
     const orderId = uuidv4();
-    const result = await db.query(`INSERT INTO orders (id, user_id, symbol, quantity, side,  status) VALUES ($1, $2, $3, $4, $5, 'PENDING') RETURNING id`, [ orderId, userId, normalisedSymbol, quantity, side ] );
-    console.log("createPendingOrder:", result)
-    return { id: result.rows[0].id }
+    const expiresAt = orderType === "LIMIT"
+                        ? new Date(Date.now() + validForMinutes * 60 * 1000)
+                        : null;
+    const result = await db.query(`INSERT INTO orders (id, user_id, symbol, quantity, side,  status, order_type, limit_price, expires_at) VALUES ($1, $2, $3, $4, $5, 'PENDING', $6, $7, $8)`, [ orderId, userId, normalisedSymbol, quantity, side, orderType, limitPrice, expiresAt ] );
+    return { id: orderId }
 }
 //Separated executution logic
 async function executeOrder(orderId) {
-    console.log("Execution starts....")
+    console.log("Execution starts....", orderId)
 
+    console.log("1")
     const res = await db.query(`SELECT * FROM orders WHERE id = $1 `, [ orderId ])
     const order = res.rows[0]
     if(!order) throw new Error("Order Not Found.");
@@ -23,11 +26,23 @@ async function executeOrder(orderId) {
         console.log(`Skipping order ${orderId}, status=${order.status}`)
         return
     }
-    
-    const { price } = await getLivePrice(order.symbol);
-    const orderPrice = price.price;
+    console.log("2")
+
+    const symbol = order.symbol.toUpperCase();
+    console.log("just before fetching price from getLivePrice")
+    const { price } = await getLivePrice(symbol);
+    console.log("executeOrder price",price)
+    const orderPrice = price;
     if(!orderPrice || !Number.isFinite(orderPrice)) throw new Error("Invalid market price.")
-    console.log("Price: ",price)
+    console.log("OrderPrice: ",orderPrice)
+
+    if(order.order_type === "LIMIT"){
+        if(order.side === "BUY" && orderPrice > order.limit_price || order.side === "SELL" && orderPrice < order.limit_price){
+            console.log("Limit condition not met. Skipping")
+            return 
+        }
+    }
+
     let client = null;
     
     try {
@@ -40,10 +55,10 @@ async function executeOrder(orderId) {
             return;
         }
         console.log("Updating Order")
-        if(order.side === 'BUY') await updateHoldings( client, order.user_id, order.symbol, order.quantity, orderPrice)
-        else if(order.side === 'SELL') await reduceHoldings( client, order.user_id, order.symbol, order.quantity)
+        if(order.side === 'BUY') await updateHoldings( client, order.user_id, symbol, order.quantity, orderPrice)
+        else if(order.side === 'SELL') await reduceHoldings( client, order.user_id, symbol, order.quantity)
         console.log("The order gets executed.")
-        await client.query(`UPDATE orders SET status = 'EXECUTED', price = $1 WHERE id = $2`, [ orderPrice, orderId ] )
+        await client.query(`UPDATE orders SET status = 'EXECUTED', price = $1, executed_at = NOW() WHERE id = $2`, [ orderPrice, orderId ] )
         await client.query(`COMMIT`)
         console.log("order executed:", orderId)
     } catch (error) {
