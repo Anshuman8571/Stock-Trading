@@ -1,11 +1,20 @@
 require("dotenv").config();
 const db = require("../config/db");
+const orderEvents = require("../events/order.events");
 const { getLivePrice } = require("../modules/market/market.service");
 const { updateHoldings, reduceHoldings } = require("../modules/portfolio/portfolio.service")
 
 async function processLimitOrders() {
     console.log("Scanning limit Orders: ")
-    await db.query(`UPDATE orders SET status = 'CANCELLED', cancel_reason = 'LIMIT EXPIRED' WHERE status = 'PENDING' AND order_type = 'LIMIT' AND expires_at IS NOT NULL AND expires_at <= NOW() OR expires_at IS NULL`);
+    const { rows: expiredOrders } = await db.query(`UPDATE orders SET status = 'CANCELLED', cancel_reason = 'LIMIT EXPIRED' WHERE status = 'PENDING' AND order_type = 'LIMIT' AND expires_at IS NOT NULL AND expires_at <= NOW() OR expires_at IS NULL`);
+    for(const order of expiredOrders){
+        orderEvents.emit("order:update",{
+            orderId:order.id,
+            userId: order.user_id,
+            status: "CANCELLED",
+            reason: "LIMIT_EXPIRED"
+        })
+    }
     const { rows: symbols } = await db.query(`SELECT DISTINCT symbol FROM orders WHERE status = 'PENDING' AND order_type = 'LIMIT' AND expires_at > NOW()`);
 
     for(const { symbol } of symbols){

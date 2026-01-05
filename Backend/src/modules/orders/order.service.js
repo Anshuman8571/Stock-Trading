@@ -3,7 +3,7 @@ const { v4: uuidv4 } = require("uuid")
 const { getOrCreatePortfolio, reduceHoldings,updateHoldings } = require("../portfolio/portfolio.service")
 const { getLivePrice } = require("../market/market.service")
 // const { updateHoldings } = require("../portfolio/portfolio.service") 
-
+const orderEvents = require("../../events/order.events")
 
 async function createPendingOrder(userId, symbol, quantity, side, orderType = "MARKET", limitPrice=null, validForMinutes = 30) {
     const normalisedSymbol = symbol.trim().toUpperCase();
@@ -60,12 +60,23 @@ async function executeOrder(orderId) {
         console.log("The order gets executed.")
         await client.query(`UPDATE orders SET status = 'EXECUTED', price = $1, executed_at = NOW() WHERE id = $2`, [ orderPrice, orderId ] )
         await client.query(`COMMIT`)
+        orderEvents.emit("order:update",{
+            orderId,
+            userId: order.user_id,
+            status: "EXECUTED",
+            price: orderPrice
+        })
         console.log("order executed:", orderId)
     } catch (error) {
         console.log("The order get Failed.")
         if(client){
             await client.query("ROLLBACK")
             await client.query(`UPDATE orders SET status = 'FAILED' WHERE id = $1`, [ orderId ] )
+            orderEvents.emit("order:update",{
+                orderId,
+                userId:order.user_id,
+                status: "FAILED"
+            })
         }
         throw error;
     } finally {
@@ -81,6 +92,12 @@ async function cancelOrder(userId, orderId) {
         throw err;
     }
     console.log("Order Cancelled Successfully")
+    orderEvents.emit("order:update",{
+        orderId,
+        userId,
+        status: "CANCELLED",
+        reason: "USER_CANCELLED"
+    })
     return result.rows[0];
 }
 
