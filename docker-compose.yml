@@ -49,6 +49,7 @@ services:
       - redis
 
   limit-worker:
+    # profiles: ["develop"]
     build: ./Backend
     command: node src/workers/limitScheduler.js
     env_file:

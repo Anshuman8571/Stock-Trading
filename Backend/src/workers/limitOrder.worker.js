@@ -5,6 +5,10 @@ const { getLivePrice } = require("../modules/market/market.service");
 const { updateHoldings, reduceHoldings } = require("../modules/portfolio/portfolio.service")
 
 async function processLimitOrders() {
+    if(process.env.NODE_ENV === "test") {
+        console.log("Limit worker disabled in test environment");
+        process.exit(0);
+    }
     console.log("Scanning limit Orders: ")
     const { rows: expiredOrders } = await db.query(`UPDATE orders SET status = 'CANCELLED', cancel_reason = 'LIMIT EXPIRED' WHERE status = 'PENDING' AND order_type = 'LIMIT' AND expires_at IS NOT NULL AND expires_at <= NOW() OR expires_at IS NULL`);
     for(const order of expiredOrders){

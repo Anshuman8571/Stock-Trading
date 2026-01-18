@@ -40,7 +40,7 @@ async function fetchPriceFromAPI(symbol) {
 
     // console.log("alpha response: ", JSON.stringify(response.data["Time Series (Daily)"], null, 2))
     console.log("API_KEY: ", process.env.ALPHA_VANTAGE_API_KEY)
-
+    console.log("response",response)
     const quote = response.data["Time Series (Daily)"];
     if( !quote ){
         const err = new Error("Unable to fetch live price.")

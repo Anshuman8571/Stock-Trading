@@ -1,6 +1,6 @@
 const orderEvents = require("../../events/order.events")
 
-function orderUpdateSSE(req,res){
+async function orderUpdateSSE(req,res){
     const userId = req.user.userId;
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
@@ -8,12 +8,29 @@ function orderUpdateSSE(req,res){
 
     res.flushHeaders();
 
+    const {rows: orders} = await db.query(`SELECT id, symbol, status, price, failure_reason FROM orders WHERE user_id = $1 ORDERS BY created_at DESC`, [ userId ])
+
+    res.write(
+        `data: ${JSON.stringify({
+            type: "INIT",
+            orders
+        })} \n\n`
+    )
+
     const listener = (event) =>{
         if(event.userId === userId){
-            res.write(`data: ${JSON.stringify(event)} \n\n`)
+            res.write(`data: ${JSON.stringify({
+                type: "UPDATE",
+                ...event
+            })} \n\n`)
         }
     }
-    orderEvents.on("order:update",listener)
+
+    const heartBeat = setInterval(() => {
+        res.write(": ping:\n\n");
+    }, 15000);
+
+    // orderEvents.on("order:update",listener)
     req.on("close",() => {
         orderEvents.off("order:update",listener);
         res.end();

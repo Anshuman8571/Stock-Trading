@@ -11,7 +11,8 @@ async function buyStock(req, res, next) {
         const order = await createPendingOrder(userId, symbol, quantity, 'BUY', orderType, limitPrice);
         if (orderType === "MARKET"){
             await orderQueue.add("execute-order",{
-                orderId: order.id
+                orderId: order.id,
+                jobId: order.id
             })
         }
 
@@ -37,7 +38,8 @@ async function sellStock(req, res, next) {
         const order = await createPendingOrder( userId, symbol, quantity, 'SELL', orderType, limitPrice)
         if(orderType === "MARKET"){
             await orderQueue.add("execute-order",{
-                orderId: order.id
+                orderId: order.id,
+                jobId:order.id
             })
         }
         res.status(202).json({
