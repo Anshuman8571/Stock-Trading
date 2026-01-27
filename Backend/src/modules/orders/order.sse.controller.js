@@ -1,4 +1,8 @@
-const orderEvents = require("../../events/order.events")
+// const orderEvents = require("../../events/order.events")
+const {createSubscriber} = require("../../config/redis")
+const { CHANNEL } = require("../../events/order.pubsub")
+
+const db = require("../../config/db")
 
 async function orderUpdateSSE(req,res){
     const userId = req.user.userId;
@@ -8,7 +12,7 @@ async function orderUpdateSSE(req,res){
 
     res.flushHeaders();
 
-    const {rows: orders} = await db.query(`SELECT id, symbol, status, price, failure_reason FROM orders WHERE user_id = $1 ORDERS BY created_at DESC`, [ userId ])
+    const {rows: orders} = await db.query(`SELECT id, symbol, side, status, price, failure_reason FROM orders WHERE user_id = $1 ORDER BY created_at DESC`, [ userId ])
 
     res.write(
         `data: ${JSON.stringify({
@@ -16,23 +20,36 @@ async function orderUpdateSSE(req,res){
             orders
         })} \n\n`
     )
-
-    const listener = (event) =>{
+    const subscriber = await createSubscriber();
+    // await subscriber.connect();
+    await subscriber.subscribe(CHANNEL, (message) => {
+        const event = JSON.parse(message);
         if(event.userId === userId){
             res.write(`data: ${JSON.stringify({
                 type: "UPDATE",
                 ...event
-            })} \n\n`)
+            })}\n\n`)
         }
-    }
-
+    })
+    // const listener = (event) =>{
+    //     console.log("SSE RECIEVED EVENT", event)
+    //     if(event.userId === userId){
+    //         res.write(`data: ${JSON.stringify({
+    //             type: "UPDATE",
+    //             ...event
+    //         })} \n\n`)
+    //     }
+    // }
+    // orderEvents.on("order:update",listener)
     const heartBeat = setInterval(() => {
         res.write(": ping:\n\n");
     }, 15000);
 
-    // orderEvents.on("order:update",listener)
-    req.on("close",() => {
-        orderEvents.off("order:update",listener);
+    req.on("close",async () => {
+        clearInterval(heartBeat);
+        await subscriber.unsubscribe(CHANNEL);
+        await subscriber.quit();
+        // orderEvents.off("order:update",listener);
         res.end();
     })
 }   

@@ -1,5 +1,6 @@
 const db = require("../../config/db");
 const { getLivePrice } = require("./market.service")
+const orderEvents = require("../../events/order.events")
 
 const TTL_MS = Number(process.env.PRICE_NUMBER_TTL || 30000);
 
@@ -14,7 +15,7 @@ async function getPriceSnapshot(symbol) {
 
     }
 
-    const { price } = await getLivePric(symbol);
+    const { price } = await getLivePrice(symbol);
     if(!price || !Number.isFinite(price)){
         throw new Error("Unable to fetch Live Price.")
     }
@@ -28,6 +29,9 @@ async function getPriceSnapshot(symbol) {
         `,
         [ symbol, price ]
     )
+
+    orderEvents.emit("price:update", { symbol });
+    
     return { price, source: "API", ageMS: 0 }
 }
 

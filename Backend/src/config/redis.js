@@ -23,4 +23,10 @@ async function initRedis(params) {
 
 initRedis();
 
-module.exports = redisClient;
+async function createSubscriber(params) {
+    const sub = redisClient.duplicate();
+    await sub.connect();
+    return sub;
+}
+
+module.exports = { redis: redisClient, createSubscriber };

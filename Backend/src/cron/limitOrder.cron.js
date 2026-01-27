@@ -6,7 +6,7 @@ async function requeueLimitOrders() {
     const { rows } = await db.query(`SELECT id FROM orders WHERE status = 'PENDING' AND order_type = 'LIMIT' AND expires_at IS NOT NULL AND expires_at < NOW()`);
     for(const order of rows){
         await orderQueue.add("execute-order",
-            {orderid: order.id},
+            {orderId: order.id},
             { 
                 jobId:order.id,
                 removeOnComplete: true

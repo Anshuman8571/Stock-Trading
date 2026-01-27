@@ -14,7 +14,7 @@ async function getPriceSnapshot(symbol) {
 
     }
 
-    const { price } = await getLivePric(symbol);
+    const { price } = await getLivePrice(symbol);
     if(!price || !Number.isFinite(price)){
         throw new Error("Unable to fetch Live Price.")
     }

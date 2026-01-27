@@ -1,5 +1,5 @@
 const axios = require("axios");
-const redisClient = require("../../config/redis");
+const { redis } = require("../../config/redis");
 // const { cache } = require("react");
 // Removed in-memory Cache
 
@@ -7,14 +7,14 @@ const PRICE_TTL = 60;
 
 async function getLivePrice(symbol) {
     const cachedKey = `price:${symbol}`;
-    const cachedPrice = await redisClient.get(cachedKey);
+    const cachedPrice = await redis.get(cachedKey);
 
     if(cachedPrice){
         console.log(`Cache HIT for ${symbol} and price ${cachedPrice}`)
         const priceValue = parseFloat(cachedPrice);
         console.log("CachedPrice:",priceValue)
         if(!isNaN(priceValue) && priceValue > 0 ) return { price: priceValue }
-        await redisClient.del(cachedKey);
+        await redis.del(cachedKey);
     }
     
     console.log(`Cache MISS for ${symbol}`);
@@ -22,7 +22,7 @@ async function getLivePrice(symbol) {
     const apiData = await fetchPriceFromAPI(symbol);
     const NumericPrice = apiData.price;
     console.log("NumericPrice from fetchPriceFromAPI", NumericPrice)
-    await redisClient.setEx(cachedKey, PRICE_TTL, NumericPrice.toString());
+    await redis.setEx(cachedKey, PRICE_TTL, NumericPrice.toString());
     return { price: NumericPrice };
 }
 
@@ -40,7 +40,7 @@ async function fetchPriceFromAPI(symbol) {
 
     // console.log("alpha response: ", JSON.stringify(response.data["Time Series (Daily)"], null, 2))
     console.log("API_KEY: ", process.env.ALPHA_VANTAGE_API_KEY)
-    console.log("response",response)
+    
     const quote = response.data["Time Series (Daily)"];
     if( !quote ){
         const err = new Error("Unable to fetch live price.")
@@ -62,11 +62,6 @@ async function fetchPriceFromAPI(symbol) {
     const change = latestClose - previousClose;
     const changePercentage = (change/ previousClose) * 100;
     console.log("LatestClose from market service:",latestClose)
-    // if(isNaN(price) || price === null || price <= 0) {
-    //     console.log("The price is not legal");
-    //     throw new Error("Invalid market price");
-    // }
-    // return { price, volume, source: "alpha-vantage"}
     return { 
         Date: dates[0],
         price: latestClose,

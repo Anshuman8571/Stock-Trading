@@ -38,7 +38,7 @@ services:
   worker:
     build: ./Backend
     container_name: trading-worker
-    command: nodemon src/workers/order.worker.js
+    command: node src/workers/order.worker.js
     env_file:
       - ./Backend/.env
     volumes: 
@@ -48,18 +48,18 @@ services:
       - postgres
       - redis
 
-  limit-worker:
-    # profiles: ["develop"]
-    build: ./Backend
-    command: node src/workers/limitScheduler.js
-    env_file:
-      - ./Backend/.env
-    volumes:
-      - ./Backend:/app
-      - /app/node_modules
-    depends_on:
-      - postgres
-      - redis
+  # limit-worker:
+  #   # profiles: ["develop"]
+  #   build: ./Backend
+  #   command: node src/workers/limitScheduler.js
+  #   env_file:
+  #     - ./Backend/.env
+  #   volumes:
+  #     - ./Backend:/app
+  #     - /app/node_modules
+  #   depends_on:
+  #     - postgres
+  #     - redis
 
 
 volumes:

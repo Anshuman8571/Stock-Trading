@@ -1,7 +1,8 @@
-const redis = require("../config/redis")
+const { redis } = require("../config/redis")
+const { CHANNEL } = require("./order.pubsub")
 
 async function publishOrderEvent(event) {
-    await redis.publish("order:update", JSON.stringify(event))    
+    await redis.publish(CHANNEL, JSON.stringify(event))    
 }
 
 module.exports = { publishOrderEvent }

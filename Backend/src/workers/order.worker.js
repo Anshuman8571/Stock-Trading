@@ -7,6 +7,9 @@ console.log("Worker depenencies loaded")
 const worker = new Worker("order-queue", async (job) => {
         console.log("Worker got picked up:", job.data)
         const { orderId } = job.data;
+        if(!orderId){
+            console.log("[ORDER WORKER] Missing orderId in Job", job.data)
+        }
         console.log("orderId: ", orderId)
         await executeOrder(orderId);
         console.log("Completed Execution.")

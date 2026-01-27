@@ -1,5 +1,5 @@
 const { channel } = require("diagnostics_channel");
-const redis = require("../config/redis")
+const { redis } = require("../config/redis")
 const EventEmitter = require("events")
 
 const sseBus = new EventEmitter();

@@ -1,9 +1,10 @@
 const db = require("../../config/db")
 const { v4: uuidv4 } = require("uuid")
-const { getOrCreatePortfolio, reduceHoldings,updateHoldings } = require("../portfolio/portfolio.service")
+const { reduceHoldings, updateHoldings } = require("../portfolio/portfolio.service")
 const { getLivePrice } = require("../market/market.service")
 // const { updateHoldings } = require("../portfolio/portfolio.service") 
-const orderEvents = require("../../events/order.events")
+// const orderEvents = require("../../events/order.events")
+const { publishOrderEvent } = require("../../events/order.pubsub")
 const { getPriceSnapshot } = require("../market/market.snapshot.service")
 
 async function createPendingOrder(userId, symbol, quantity, side, orderType = "MARKET", limitPrice=null, validForMinutes = 30) {
@@ -25,7 +26,7 @@ async function executeOrder(orderId) {
         client = await db.getClient();
         await client.query("BEGIN");
 
-        const claimRes = await client.query(`UPDATE orders SET status = 'EXECUTING' WHERE id = $1 AND status = 'PENDING' RETURNING *`, [ orderId ])
+        const claimRes = await client.query(`UPDATE orders SET status = 'PROCESSING', updated_at = NOW() WHERE id = $1 AND status = 'PENDING' RETURNING *`, [ orderId ])
         if(claimRes.rowCount === 0){
             await client.query("ROLLBACK");
             console.log(`Order ${orderId} not claimable (not pending)`);
@@ -35,17 +36,17 @@ async function executeOrder(orderId) {
         const order = claimRes.rows[0];
         const symbol = order.symbol.toUpperCase();
         console.log("Fetching price for:",symbol)
+        
         const { price, source, ageMS } = await getPriceSnapshot(symbol);
-        
         if(!price || !Number.isFinite(price)) throw new Error("Invalid Market Price.")
-        
+        // await client.query(`UPDATE orders SET status = 'PROCESSING', updated_at = NOW() WHERE id = $1`, [ orderId ])
         // Limit Order Validation
         if(order.order_type === "LIMIT"){
             const limitNotMet = 
                 (order.side === "BUY" && price > order.limit_price) ||
                 (order.side === "SELL" && price < order.limit_price);
             if(limitNotMet){
-                await client.query(`UPDATE orders SET status = 'PENDING' WHERE id = $1`, [ orderId ])
+                await client.query(`UPDATE orders SET status = 'PENDING', updated_at = NOW() WHERE id = $1`, [ orderId ])
                 await client.query("COMMIT");
                 console.log("Limit condition not met, reverting to PENDING")
                 return;
@@ -60,12 +61,24 @@ async function executeOrder(orderId) {
         }
 
         // Finalize Order
-        await client.query(`UPDATE orders SET status = 'EXECUTED', price = $1, executed_at = NOW() WHERE id = $2`,[ price, orderId ])
+        await client.query(`UPDATE orders SET status = 'EXECUTED', price = $1, executed_at = NOW(), updated_at = NOW() WHERE id = $2`,[ price, orderId ])
         await client.query("COMMIT");
         //Emit Event After commit
-        orderEvents.emit("order:update",{
+        // orderEvents.emit("order:update",{
+        //     orderId,
+        //     userId: order.user_id,
+        //     side: order.side,
+        //     orderType: order.order_type,
+        //     status: "EXECUTED",
+        //     price,
+        //     priceSource: source,
+        //     snapshotAgeMS: ageMS
+        // })
+        await publishOrderEvent({
             orderId,
             userId: order.user_id,
+            side: order.side,
+            orderType: order.order_type,
             status: "EXECUTED",
             price,
             priceSource: source,
@@ -77,10 +90,21 @@ async function executeOrder(orderId) {
         console.log("The order get Failed.", orderId)
         if(client){
             await client.query("ROLLBACK")
+            await client.query(`UPDATE orders SET status = 'FAILED', failure_reason = $1, updated_at = NOW() WHERE id = $2 AND status IN ('PROCESSING')`, [ error.message, orderId ] )
         }
-        await client.query(`UPDATE orders SET status = 'FAILED', failure_reason = $1 WHERE id = $2 AND status = 'EXECUTING'`, [ error.message, orderId ] )
-        orderEvents.emit("order:update",{
+        // orderEvents.emit("order:update",{
+        //     orderId,
+        //     userId: order.user_id,
+        //     side: order.side,
+        //     orderType: order.order_type,
+        //     status: "FAILED",
+        //     reason: error.message
+        // })
+        await publishOrderEvent({
             orderId,
+            userId: order.user_id,
+            side: order.side,
+            orderType: order.order_type,
             status: "FAILED",
             reason: error.message
         })
@@ -91,16 +115,25 @@ async function executeOrder(orderId) {
 }
 
 async function cancelOrder(userId, orderId) {
-    const result = await db.query(`UPDATE orders SET status = 'CANCELLED', cancel_reason = 'USER_CANCELLED' WHERE id = $1 AND user_id = $2 AND status = 'PENDING' AND order_type = 'LIMIT' RETURNING id, status`, [ orderId, userId ])
+    const result = await db.query(`UPDATE orders SET status = 'CANCELLED', cancel_reason = 'USER_CANCELLED', updated_at = NOW() WHERE id = $1 AND user_id = $2 AND status = 'PENDING' AND order_type = 'LIMIT' RETURNING id, status`, [ orderId, userId ])
     if(result.rowCount === 0){
         const err = new Error ("Order cannot be cancelled (not found, not pending, or not a limit order)");
         err.status = 400;
         throw err;
     }
     console.log("Order Cancelled Successfully")
-    orderEvents.emit("order:update",{
+    // orderEvents.emit("order:update",{
+    //     orderId,
+    //     userId,
+    //     side: result.rows[0].side,
+    //     status: "CANCELLED",
+    //     reason: "USER_CANCELLED"
+    // })
+    await publishOrderEvent({
         orderId,
         userId,
+        side: result.rows[0].side,
+        orderType: "LIMIT",
         status: "CANCELLED",
         reason: "USER_CANCELLED"
     })
