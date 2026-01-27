@@ -22,7 +22,12 @@ jobs:
               with:
                 node-version: 20
                 
-
+            - name: Debug repo Structure
+              run: |
+                pwd
+                ls
+                ls -la
+                
             - name: Install Backend Dependencies
               run: npm install
 
