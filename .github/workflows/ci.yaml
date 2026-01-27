@@ -11,6 +11,24 @@ jobs:
         defaults:
             run:
                 working-directory: Backend
+        
+        services:
+            redis: 
+                image: redis:7
+                ports: 
+                    - 6379:6379
+            postgres:
+                image: postgres:15
+                env: 
+                    POSTGRES_USER: postgres
+                    POSTGRES_PASSWORD: GattaRoad
+                    POSTGRES_DB: stock-trading
+                ports: 
+                    - 5432:5432
+        env:
+            REDIS_URL: redis://redis:6379
+            DATABASE_URL: postgres://postgres:GattaRoad@postgres:5432/stock-trading
+            NODE_ENV: test
 
         steps:
             - name: Checkout repository
@@ -53,7 +71,7 @@ jobs:
         env:
             REDIS_URL: redis://redis:6379
             DATABASE_URL: postgres://postgres:GattaRoad@postgres:5432/stock-trading
-            
+
         steps: 
             - name: Checkout repository
               uses: actions/checkout@v4
