@@ -48,6 +48,16 @@ jobs:
             - name: Install Backend Dependencies
               run: npm ci
 
+            - name: Wait for Redis
+              run: |
+                for i in {1..10}; do
+                    nc -z redis 6379 && echo "Redis is up" && exit 0
+                    echo "Waiting for Redis"
+                    sleep 2
+                done
+                echo "Redis did not start in time"
+                exit 1    
+
             - name: Run backend test
               run: npm test || echo "No tests Configured"
 
