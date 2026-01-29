@@ -67,6 +67,16 @@ jobs:
                 done
                 exit 1
             
+            - name: Initialize the database
+              env: 
+                PGPASSWORD: GattaRoad
+              run: |
+                sudo apt-get install -y postgresql-client
+                psql -h localhost -U postgres -d stock-trading -f ./docker-entrypoint-initdb.d/01_tables.sql
+                psql -h localhost -U postgres -d stock-trading -f ./docker-entrypoint-initdb.d/02_portfolio.sql
+                psql -h localhost -U postgres -d stock-trading -f ./docker-entrypoint-initdb.d/03_orders.sql
+                psql -h localhost -U postgres -d stock-trading -f ./docker-entrypoint-initdb.d/04_add_expires_at.sql
+
             - name: Run backend test
               run: npm test || echo "No tests Configured"
             
