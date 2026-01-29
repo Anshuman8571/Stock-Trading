@@ -46,4 +46,4 @@ async function createSubscriber(params) {
     return sub;
 }
 
-module.exports = { redisClient, connectRedis, createSubscriber };
+module.exports = { redis: redisClient, connectRedis, createSubscriber };

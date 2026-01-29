@@ -13,40 +13,54 @@ services:
     volumes:
       - ./Backend/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
       - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     
   redis:
     image: redis:7
     container_name: trading-redis
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
     
   backend:
     build: ./Backend
     container_name: trading-backend
     command: npm run dev
     env_file: 
-      - ./Backend/.env
+      - ./Backend/.env.docker
     ports:
       - "3000:3000"
     volumes: 
       - ./Backend:/app
       - /app/node_modules
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   worker:
     build: ./Backend
     container_name: trading-worker
     command: node src/workers/order.worker.js
     env_file:
-      - ./Backend/.env
+      - ./Backend/.env.docker
     volumes: 
       - ./Backend:/app
       - /app/node_modules
     depends_on:
-      - postgres
-      - redis
+      postgres: 
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   # limit-worker:
   #   # profiles: ["develop"]

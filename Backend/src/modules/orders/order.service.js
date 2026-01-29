@@ -14,6 +14,7 @@ async function createPendingOrder(userId, symbol, quantity, side, orderType = "M
                         ? new Date(Date.now() + validForMinutes * 60 * 1000)
                         : null;
     const result = await db.query(`INSERT INTO orders (id, user_id, symbol, quantity, side,  status, order_type, limit_price, expires_at) VALUES ($1, $2, $3, $4, $5, 'PENDING', $6, $7, $8)`, [ orderId, userId, normalisedSymbol, quantity, side, orderType, limitPrice, expiresAt ] );
+    console.log("Pending Order is created", orderId)
     return { id: orderId }
 }
 //Separated executution logic
@@ -21,7 +22,7 @@ async function executeOrder(orderId) {
     console.log("Execution starts....", orderId)
 
     let client = null;
-    
+    let order = null;
     try {
         client = await db.getClient();
         await client.query("BEGIN");
@@ -33,7 +34,7 @@ async function executeOrder(orderId) {
             return;
         }
 
-        const order = claimRes.rows[0];
+        order = claimRes.rows[0];
         const symbol = order.symbol.toUpperCase();
         console.log("Fetching price for:",symbol)
         
@@ -89,6 +90,7 @@ async function executeOrder(orderId) {
     } catch (error) {
         console.log("The order get Failed.", orderId)
         if(client){
+            console.log("Getting Rollback")
             await client.query("ROLLBACK")
             await client.query(`UPDATE orders SET status = 'FAILED', failure_reason = $1, updated_at = NOW() WHERE id = $2 AND status IN ('PROCESSING')`, [ error.message, orderId ] )
         }
@@ -100,6 +102,10 @@ async function executeOrder(orderId) {
         //     status: "FAILED",
         //     reason: error.message
         // })
+        if(!order) {
+            const res = await db.query("SELECT * FROM orders WHERE id = $1", [ orderId ])
+            order = res.rows[0] ?? null;
+        }
         await publishOrderEvent({
             orderId,
             userId: order.user_id,

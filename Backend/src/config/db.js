@@ -1,11 +1,12 @@
 const { Pool } = require("pg")
 
+const databaseURL = process.env.DATABASE_URL;
+if(!databaseURL) {
+    throw new Error("database_URL is not defined.");
+}
+
 const pool = new Pool({
-    host:"postgres",
-    user:"postgres",
-    password:"GattaRoad",
-    database:"stock-trading", 
-    port:5432,
+    connectionString: databaseURL
 });
 
 pool.on("connect",()=>{
@@ -20,5 +21,6 @@ pool.on("error",(error)=>{
 
 module.exports = { 
     query: (text, params) => pool.query(text, params),
-    getClient : () => pool.connect()
+    getClient : () => pool.connect(),
+    close: () => pool.end()
 }

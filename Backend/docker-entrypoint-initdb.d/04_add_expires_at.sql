@@ -1,0 +1,32 @@
+-- users
+ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(50);
+
+-- orders
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW();
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS failure_reason TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancel_reason TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS price NUMERIC;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS executed_at TIMESTAMP;
+
+
+ALTER TABLE orders
+DROP CONSTRAINT IF EXISTS orders_status_check;
+
+ALTER TABLE orders
+ADD CONSTRAINT orders_status_check
+CHECK (
+  status IN (
+    'PENDING',
+    'PROCESSING',
+    'EXECUTED',
+    'FAILED',
+    'CANCELLED'
+  )
+);
+
+CREATE TABLE IF NOT EXISTS market_prices (
+    symbol TEXT PRIMARY KEY,
+    price NUMERIC NOT NULL,
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
