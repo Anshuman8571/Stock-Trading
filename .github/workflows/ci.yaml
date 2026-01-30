@@ -105,4 +105,4 @@ jobs:
                 push: true
                 tags: |
                     ${{ secrets.DOCKER_USERNAME }}/stock-trading-backend:latest
-                    ${{ secrets.DOCKER_PASSWORD }}/stock-trading-backend:${{ github.sha }}
+                    ${{ secrets.DOCKER_USERNAME }}/stock-trading-backend:${{ github.sha }}
