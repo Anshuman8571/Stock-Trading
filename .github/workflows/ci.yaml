@@ -106,4 +106,3 @@ jobs:
                 tags: |
                     ${{ secrets.DOCKER_USERNAME }}/stock-trading-backend:latest
                     ${{ secrets.DOCKER_PASSWORD }}/stock-trading-backend:${{ github.sha }}
-            #   run: docker build -t stock-trading-backend ./Backend 
