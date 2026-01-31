@@ -9,14 +9,14 @@ const SALT_ROUNDS = parseInt(process.env.BCRYPT_SALT_ROUND || "10", 10)
 
 
 
-async function registerUser(email, password) {
+async function registerUser({email, password, username, phone, full_name}) {
     const exist = await db.query(`SELECT id FROM users WHERE email = $1`,[ email ])
     if(exist.rows.length > 0) throw new Error("User already exists.")
     const hashPassword = await bcrypt.hash(password, SALT_ROUNDS);
     
     const userId = uuidv4()
-    await db.query(`INSERT INTO users (id, email, password) VALUES ($1, $2, $3)`, [userId,email, hashPassword]);
-    return { id:userId, email, }
+    const { rows } = await db.query(`INSERT INTO users (id, email, password, username, phone, full_name) VALUES ($1, $2, $3, $4, $5, $6)`, [userId, email, hashPassword, username, phone, full_name]);
+    return rows[0];
 }
 
 
@@ -31,7 +31,7 @@ async function loginUser(email, password) {
     }
     const accessToken = generateAccessToken({ userId: user.id })
     const refreshToken = generateRefreshToken({ userId:user.id })
-    await db.query(`INSERT INTO refresh_tokens (id, user_id, token) VALUES ($1, $2, $3)`,[ uuidv4(), user.userId, refreshToken ])
+    await db.query(`INSERT INTO refresh_tokens (id, user_id, token) VALUES ($1, $2, $3)`,[ uuidv4(), user.id, refreshToken ])
 
     return { user, accessToken, refreshToken }
 }

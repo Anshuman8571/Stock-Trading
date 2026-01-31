@@ -64,17 +64,8 @@ async function executeOrder(orderId) {
         // Finalize Order
         await client.query(`UPDATE orders SET status = 'EXECUTED', price = $1, executed_at = NOW(), updated_at = NOW() WHERE id = $2`,[ price, orderId ])
         await client.query("COMMIT");
-        //Emit Event After commit
-        // orderEvents.emit("order:update",{
-        //     orderId,
-        //     userId: order.user_id,
-        //     side: order.side,
-        //     orderType: order.order_type,
-        //     status: "EXECUTED",
-        //     price,
-        //     priceSource: source,
-        //     snapshotAgeMS: ageMS
-        // })
+        
+        await createNotification(order.user_id, "Order Executed", `Your ${order.side} order for ${order.symbol} was executed at ₹${price}`)
         await publishOrderEvent({
             orderId,
             userId: order.user_id,
@@ -94,14 +85,10 @@ async function executeOrder(orderId) {
             await client.query("ROLLBACK")
             await client.query(`UPDATE orders SET status = 'FAILED', failure_reason = $1, updated_at = NOW() WHERE id = $2 AND status IN ('PROCESSING')`, [ error.message, orderId ] )
         }
-        // orderEvents.emit("order:update",{
-        //     orderId,
-        //     userId: order.user_id,
-        //     side: order.side,
-        //     orderType: order.order_type,
-        //     status: "FAILED",
-        //     reason: error.message
-        // })
+        if(order){
+            await createNotification(order.user_id,"Order Failed",`Your order for ${ order.symbol } failed. Reason: ${ error.message }`)
+
+        }
         if(!order) {
             const res = await db.query("SELECT * FROM orders WHERE id = $1", [ orderId ])
             order = res.rows[0] ?? null;
@@ -143,6 +130,7 @@ async function cancelOrder(userId, orderId) {
         status: "CANCELLED",
         reason: "USER_CANCELLED"
     })
+    await createNotification(userId, "Order Cancelled", "You successfully cancelled your Limit Order")
     return result.rows[0];
 }
 
@@ -152,4 +140,11 @@ async function getOrderHistory(userId) {
     return rows;
 }
 
+async function createNotification(userId, title, message) {
+    try {
+        await db.query(`INSERT INTO notifications (user_id, title, message) VALUES ($1, $2, $3)`, [ userId, title, message ])
+    } catch (error) {
+        console.error("Failed to create notifications", err)
+    }
+}
 module.exports = { createPendingOrder, getOrderHistory, executeOrder, cancelOrder }

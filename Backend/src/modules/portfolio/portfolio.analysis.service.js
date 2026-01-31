@@ -10,19 +10,27 @@ async function getPortfolioAnalytics(userId) {
     const breakdown = [];
 
     for (const holding of holdings){
-        const invested = holding.quantity * holding.avg_price;
+        const quantity = parseFloat(holding.quantity);
+        const avgPrice = parseFloat(holding.avg_price);
+        const invested = quantity * avgPrice;
+
         investedValue += invested;
+
         console.log("Holdings from loop",holding)
-        const { price:currentPrice } = await getLivePrice(holding.symbol);
+        let { price:currentPrice } = await getLivePrice(holding.symbol);
         // if(!price || isNaN(price) )
         console.log("Price.price",currentPrice)
-        const current = holding.quantity * currentPrice;
+        if(!currentPrice || isNaN(currentPrice)){
+            console.log(`Using fallback price for ${ holding.symbol }`)
+            currentPrice = avgPrice;
+        }
+        const current = quantity * currentPrice;
         currentValue += current;
 
         breakdown.push({
             symbol: holding.symbol,
-            quantity: holding.quantity,
-            avg_price: holding.avg_price,
+            quantity: quantity,
+            avg_price: avgPrice,
             current_price: currentPrice,
             invested_value: invested,
             current_value: current
@@ -36,11 +44,6 @@ async function getPortfolioAnalytics(userId) {
         symbol:item.symbol,
         exposure_percentage: currentValue === 0? 0: ((item.current_value/currentValue) * 100).toFixed(2)
     }))
-    console.log("InvestedValue",investedValue)
-    console.log("Current Value",currentValue)
-    console.log("Profit and Loss",pnl)
-    console.log("exposure", exposure)
-    console.log("Breakdown", breakdown)
 
     return { investedValue, currentValue, pnl, exposure, breakdown }
 }

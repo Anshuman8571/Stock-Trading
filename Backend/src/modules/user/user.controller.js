@@ -1,6 +1,6 @@
 const { getUserById, userUpdate,changePassword } = require("../user/user.service")
 const errorHandler  = require("../../middleware/globalErrorHandler") 
-
+const db = require("../../config/db")
 
 async function getMe(req, res,next) {
     try {
@@ -41,5 +41,24 @@ async function changeMyPassword(req,res,next) {
     }
 }
 
+async function getNotifications(req, res, next) {
+    try {
+        const userId = req.user.userId;
+        const { rows } = await db.query("SELECT * FROM notifications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 20", [userId])
+        res.json({ success: true, notifications: rows })
+    } catch (error) {
+        next(error);
+    }
+}
 
-module.exports = { getMe, updateMe, changeMyPassword }
+async function markNOtifications(req, res, next) {
+    try {
+        const { id } = req.params;
+        await db.query("UPDATE notification SET is_read = TRUE WHERE id = $1 AND user_id = $2", [ id, req.user.userId ])
+        res.json({ success: true })
+    } catch (error) {
+        next(error);
+    }
+}
+
+module.exports = { getMe, updateMe, changeMyPassword, getNotifications, markNOtifications }
