@@ -1,5 +1,7 @@
 const { createPendingOrder, getOrderHistory, cancelOrder } = require("./order.service");
 const { orderQueue } = require("../../queues/order.queue")
+const { getHolding } = require("../portfolio/portfolio.service")
+
 async function buyStock(req, res, next) {
     try {
         const { symbol, quantity, orderType, limitPrice } = req.body;
@@ -35,6 +37,14 @@ async function sellStock(req, res, next) {
         if(!symbol || typeof symbol !== "string") return res.status(400).json({ error: "Invalid Symbol" })
         if(!Number.isInteger(quantity) || quantity <= 0) return res.status(400).json({ error: "Quantity must be positive and greater than 0." })
         const userId = req.user.userId;
+
+        const currentHolding = await getHolding(userId, symbol);
+        if(!currentHolding || Number(currentHolding.quantity) < quantity){
+            return res.status(400).json({
+                error: `Insufficient holdings. you only have ${currentHolding ? currentHolding.quantity : 0} quantity of ${symbol}`
+            })
+        }
+
         const order = await createPendingOrder( userId, symbol, quantity, 'SELL', orderType, limitPrice)
         if(orderType === "MARKET"){
             await orderQueue.add("execute-order",{
@@ -60,7 +70,7 @@ async function orderHistory(req, res, next) {
         const orders = await getOrderHistory(req.user.userId);
         res.json({ success: true, orders });
     } catch (error) {
-        next(err)
+        next(error)
     }
 }
 

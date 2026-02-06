@@ -61,6 +61,17 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        - VITE_API_URL=http://backend:3000
+    ports:
+      - 80:80
+    depends_on:
+      - backend
+
 
   # limit-worker:
   #   # profiles: ["develop"]

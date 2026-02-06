@@ -14,9 +14,16 @@ async function getOrCreatePortfolio(userId, client = db) {
 
 async function getHoldings(userId) {
     const portfolio = await getOrCreatePortfolio(userId);
-
     const { rows } = await db.query(`SELECT symbol, quantity, avg_price FROM holdings WHERE portfolio_id = $1`, [ portfolio.id ]);
     return rows;
+}
+
+async function getHolding(userId, symbol) {
+    const portfolio = await getOrCreatePortfolio(userId);
+    const normalisedSymbol = symbol.trim().toUpperCase();
+
+    const { rows } = await db.query(`SELECT quantity FROM holdings WHERE portfolio_id =$1 AND symbol = $2`, [ portfolio.id, normalisedSymbol ])
+    return rows[0]
 }
 
 async function updateHoldings(client,userId, symbol, quantity, price) {
@@ -54,4 +61,4 @@ async function reduceHoldings(client, userId, symbol, quantity) {
     if(remainingQty === 0) await client.query(`DELETE FROM holdings WHERE id = $1`, [ holding.id ])
     else await client.query(`UPDATE holdings SET quantity = $1 WHERE id = $2`, [ remainingQty, holding.id ])
 }
-module.exports = { getHoldings, getOrCreatePortfolio, updateHoldings, reduceHoldings }
+module.exports = { getHoldings, getOrCreatePortfolio, updateHoldings, reduceHoldings, getHolding }
