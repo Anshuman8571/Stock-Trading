@@ -10,7 +10,10 @@ const marketRoutes = require("./modules/market/market.routes")
 const { requeueLimitOrders } = require("./cron/limitOrder.cron")
 const { recoverOrders } = require("./recovery/recoveryOrders")
 const app = express();
-app.use(cors())
+app.use(cors({
+    origin: "*",
+    credentials: true
+}))
 app.use(express.json());
 app.get("/health", (req,res) => {
     res.json({status: "Backend Running."})

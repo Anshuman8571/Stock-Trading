@@ -4,7 +4,6 @@ import toast from 'react-hot-toast';
 import { RefreshCw, ArrowRight, TrendingUp, TrendingDown } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../context/AuthContext';
-import API_URL from "../config/api"
 
 export default function Trade() {
     const [symbol, setSymbol] = useState('');
@@ -18,7 +17,7 @@ export default function Trade() {
         if (!user) return;
         
         // Connect to the backend stream
-        const eventSource = new EventSource(`${API_URL}/api/orders/stream?token=${localStorage.getItem('token')}`);
+        const eventSource = new EventSource(`/api/orders/stream?token=${localStorage.getItem('token')}`);
 
         eventSource.onmessage = (event) => {
             const data = JSON.parse(event.data);
