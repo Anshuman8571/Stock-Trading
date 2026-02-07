@@ -106,3 +106,21 @@ jobs:
                 tags: |
                     ${{ secrets.DOCKER_USERNAME }}/stock-trading-backend:latest
                     ${{ secrets.DOCKER_USERNAME }}/stock-trading-backend:${{ github.sha }}
+
+            - name: Install Frontend Dependencies
+              working-directory: frontend
+              run: npm ci
+
+            - name: Build Frontend 
+              working-directory: frontend
+              run: npm run build
+
+            - name: Build and push Frontend Image
+              uses: docker/build-push-action@v5
+              with:
+                context: ./frontend
+                file: ./frontend/Dockerfile
+                push: true
+                tags: |
+                  ${{ secrets.DOCKER_USERNAME }}/stock-trading-frontend:latest
+                  ${{ secrets.DOCKER_USERNAME }}/stock-trading-frontend:${{ github.sha }}
