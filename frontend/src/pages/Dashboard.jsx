@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/axios';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { ArrowUpRight, ArrowDownRight, IndianRupee, Briefcase, Activity, Clock, Plus, ArrowRight } from 'lucide-react';
 import PageTransition from '../components/PageTransition';
 import Skeleton from '../components/Skeleton';
@@ -50,6 +50,29 @@ export default function Dashboard() {
             <p className="text-2xl font-extrabold text-gray-900">{value}</p>
         </div>
     );
+
+    // ✅ FIXED: Custom label renderer for pie chart
+    const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, symbol }) => {
+        const RADIAN = Math.PI / 180;
+        const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+        if (percent < 0.05) return null; // Don't show label if less than 5%
+
+        return (
+            <text 
+                x={x} 
+                y={y} 
+                fill="white" 
+                textAnchor={x > cx ? 'start' : 'end'} 
+                dominantBaseline="central"
+                className="text-xs font-bold"
+            >
+                {`${(percent * 100).toFixed(0)}%`}
+            </text>
+        );
+    };
 
     if (loading) {
         return (
@@ -108,7 +131,7 @@ export default function Dashboard() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     
-                    {/* Allocation Chart */}
+                    {/* ✅ FIXED: Allocation Chart with Labels */}
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-emerald-50 lg:col-span-1 flex flex-col">
                         <h2 className="text-lg font-bold text-gray-900 mb-6">Allocation</h2>
                         <div className="flex-1 min-h-[250px]">
@@ -119,7 +142,8 @@ export default function Dashboard() {
                                             data={analytics.breakdown}
                                             cx="50%"
                                             cy="50%"
-                                            innerRadius={60}
+                                            labelLine={false}
+                                            label={renderCustomLabel}
                                             outerRadius={80}
                                             paddingAngle={5}
                                             dataKey="current_value"
@@ -131,6 +155,15 @@ export default function Dashboard() {
                                         <Tooltip 
                                             formatter={(value) => `₹${value.toLocaleString('en-IN')}`}
                                             contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                                        />
+                                        <Legend 
+                                            verticalAlign="bottom" 
+                                            height={36}
+                                            formatter={(value, entry) => {
+                                                const item = analytics.breakdown.find(b => b.symbol === entry.payload.symbol);
+                                                const percentage = ((item.current_value / analytics.currentValue) * 100).toFixed(1);
+                                                return `${entry.payload.symbol} (${percentage}%)`;
+                                            }}
                                         />
                                     </PieChart>
                                 </ResponsiveContainer>
