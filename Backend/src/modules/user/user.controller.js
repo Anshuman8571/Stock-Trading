@@ -31,7 +31,7 @@ async function changeMyPassword(req,res,next) {
         const { oldPassword, newPassword } = req.body;
         if(!oldPassword || !newPassword){
             const err = new Error("Both the passwords are required.")
-            err.status = 404
+            err.status = 400
             throw err;
         }
         await changePassword(req.user.userId, oldPassword, newPassword);
@@ -51,14 +51,14 @@ async function getNotifications(req, res, next) {
     }
 }
 
-async function markNOtifications(req, res, next) {
+async function markNotifications(req, res, next) {
     try {
         const { id } = req.params;
-        await db.query("UPDATE notification SET is_read = TRUE WHERE id = $1 AND user_id = $2", [ id, req.user.userId ])
+        await db.query("UPDATE notifications SET is_read = TRUE WHERE id = $1 AND user_id = $2", [ id, req.user.userId ])
         res.json({ success: true })
     } catch (error) {
         next(error);
     }
 }
 
-module.exports = { getMe, updateMe, changeMyPassword, getNotifications, markNOtifications }
+module.exports = { getMe, updateMe, changeMyPassword, getNotifications, markNotifications }

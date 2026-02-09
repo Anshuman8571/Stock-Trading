@@ -10,12 +10,10 @@ async function getLivePrice(symbol) {
     if(cachedPrice){
         console.log(`Cache HIT for ${symbol} and price ${cachedPrice}`)
         const priceValue = parseFloat(cachedPrice);
-        console.log("CachedPrice:",priceValue)
         if(!isNaN(priceValue) && priceValue > 0 ) return { price: priceValue }
-        // await redis.del(cachedKey);
     }
     
-    console.log(`Cache MISS for ${symbol}`);
+    console.log(`Cache MISS for ${symbol} - Fetching from API`);
 
     const apiData = await fetchPriceFromAPI(symbol);
     if(apiData && apiData.price) {
@@ -25,7 +23,6 @@ async function getLivePrice(symbol) {
 
     const NumericPrice = apiData.price;
     console.log("NumericPrice from fetchPriceFromAPI", NumericPrice)
-    // await redis.setEx(cachedKey, PRICE_TTL, NumericPrice.toString());
     return { price: null };
 }
 
@@ -41,16 +38,11 @@ async function fetchPriceFromAPI(symbol) {
                 apikey: process.env.ALPHA_VANTAGE_API_KEY
             }
         });
-
-        // console.log("alpha response: ", JSON.stringify(response.data["Time Series (Daily)"], null, 2))
-        console.log("API_KEY: ", process.env.ALPHA_VANTAGE_API_KEY)
-        // console.log("Response: ",response)
         const quote = response.data["Time Series (Daily)"];
         if( !quote ){
             console.warn(`API Warning for ${symbol}: `, JSON.stringify(response.data))
             return { price: null }
         }
-        // console.log(Object.keys(quote))
         const dates = Object.keys(quote).sort().reverse();
         console.log(`Latest Date:${dates[0]} `, quote[dates[0]])
 

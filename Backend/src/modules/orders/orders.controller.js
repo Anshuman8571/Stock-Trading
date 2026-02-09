@@ -5,10 +5,7 @@ const { getHolding } = require("../portfolio/portfolio.service")
 async function buyStock(req, res, next) {
     try {
         const { symbol, quantity, orderType, limitPrice } = req.body;
-        if(!symbol || typeof symbol !== "string") return res.status(400).json({ error: "Invalid Symbol" })
-        if(!Number.isInteger(quantity) || quantity <= 0) return res.status(400).json({ error: "Quantity must be positive and greater than 0." })
         
-        console.log("req.User ", req.user)
         const userId = req.user.userId;
         const order = await createPendingOrder(userId, symbol, quantity, 'BUY', orderType, limitPrice);
         if (orderType === "MARKET"){
@@ -25,7 +22,6 @@ async function buyStock(req, res, next) {
             orderId: order.id,
             status: "PENDING" 
         })
-        // res.json({ success: true, result })
     } catch (error) {
         next(error);
     }
@@ -34,8 +30,6 @@ async function buyStock(req, res, next) {
 async function sellStock(req, res, next) {
     try {
         const { symbol, quantity, orderType, limitPrice } = req.body;
-        if(!symbol || typeof symbol !== "string") return res.status(400).json({ error: "Invalid Symbol" })
-        if(!Number.isInteger(quantity) || quantity <= 0) return res.status(400).json({ error: "Quantity must be positive and greater than 0." })
         const userId = req.user.userId;
 
         const currentHolding = await getHolding(userId, symbol);
