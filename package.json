@@ -1,10 +1,17 @@
 {
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "@langchain/community": "^1.1.12",
+    "@langchain/core": "^1.1.19",
+    "@langchain/google-genai": "^2.1.15",
+    "@langchain/openai": "^1.2.5",
     "bullmq": "^5.66.2",
+    "cheerio": "^1.2.0",
     "express-rate-limit": "^8.2.1",
+    "faiss-node": "^0.5.1",
     "joi": "^18.0.2",
-    "openai": "^6.15.0"
+    "openai": "^4.104.0",
+    "pdf-parse": "^2.4.5"
   },
   "devDependencies": {
     "@headlessui/react": "^2.2.9",

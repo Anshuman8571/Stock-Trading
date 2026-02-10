@@ -1,3 +1,4 @@
 dump.rdb
 .env.production
 .env.docker
+.env

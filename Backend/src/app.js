@@ -9,7 +9,7 @@ const orderRoutes = require("./modules/orders/orders.routes")
 const marketRoutes = require("./modules/market/market.routes")
 const { requeueLimitOrders } = require("./cron/limitOrder.cron")
 const { recoverOrders } = require("./recovery/recoveryOrders")
-
+const aiRoutes = require("./ai/routes/ai.routes")
 const app = express();
 
 // ✅ CRITICAL FIX: Enable trust proxy for Docker/Nginx
@@ -28,6 +28,7 @@ app.get("/health", (req,res) => {
 
 setInterval(requeueLimitOrders, 1000 * 60 * 60 * 6);
 
+app.use("/api/ai",aiRoutes)
 app.use("/api/portfolio",portfolioRoutes)
 app.use("/api/auth",authRoutes)
 app.use("/api/user",userRoutes)
