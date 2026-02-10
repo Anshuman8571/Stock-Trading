@@ -5,7 +5,7 @@ const apiKey = process.env.GEMINI_API_KEY || (process.env.NODE_ENV === 'test' ? 
 
 // Initialize Gemini Model (FIXED)
 const model = new ChatGoogleGenerativeAI({
-    apiKey: process.env.GEMINI_API_KEY,
+    apiKey: apiKey,
     model: "gemini-2.5-flash", 
     temperature: 0.7,
     maxOutputTokens: 1000, 
