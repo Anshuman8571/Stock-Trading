@@ -5,17 +5,20 @@ jest.mock("../modules/market/market.snapshot.service",() => ({
 const { request, app } = require("../testUtils/testUtils")
 const { executeOrder } = require("../modules/orders/order.service");
 const { getPriceSnapshot } = require("../modules/market/market.snapshot.service");
-const { register } = require("../modules/auth/auth.controller");
+// Removed incorrect import: const { register } = require("../modules/auth/auth.controller");
 
 describe("Market BUY order Flow",()=>{
     let token; // this is where we will store token after login
+    
     beforeAll(async () => {
-        await register(app)
+        // FIX 1: Use 'request(app)' instead of 'register(app)'
+        await request(app)
             .post("/api/auth/register")
             .send({
                 email: "abcde@gmail.com",
-                password: "abcdefghijklmnopqrstuvwxyz"
-            })
+                password: "abcdefghijklmnopqrstuvwxyz",
+                username: "testuser" // FIX 2: Added required username
+            });
         
         const res = await request(app)
             .post("/api/auth/login")
