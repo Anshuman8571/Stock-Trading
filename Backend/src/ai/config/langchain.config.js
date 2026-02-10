@@ -1,6 +1,8 @@
 const { ChatGoogleGenerativeAI } = require("@langchain/google-genai");
 const { ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate } = require("@langchain/core/prompts");
 
+const apiKey = process.env.GEMINI_API_KEY || (process.env.NODE_ENV === 'test' ? "dummy-key-for-test" : undefined);
+
 // Initialize Gemini Model (FIXED)
 const model = new ChatGoogleGenerativeAI({
     apiKey: process.env.GEMINI_API_KEY,

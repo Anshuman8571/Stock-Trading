@@ -1,14 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { LogIn, Mail, Lock, Hash, Loader2, ArrowRight } from 'lucide-react';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
+import { GoogleLogin } from '@react-oauth/google';
 
 export default function Login() {
     const [step, setStep] = useState('email'); // 'email', 'password', 'pin'
-    const { login } = useAuth();
+    
+    // 1. Get auth methods from Context
+    const { login, pinLogin, googleLogin } = useAuth(); 
+    
     const navigate = useNavigate();
+    const location = useLocation();
+    
+    // 2. Determine where to go after login (Dashboard by default)
+    const from = location.state?.from?.pathname || '/';
     
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -36,18 +44,25 @@ export default function Login() {
     const handleEmailSubmit = async (e) => {
         e.preventDefault();
         setError('');
-        await checkEmailForPIN(email);
         
-        // If user has PIN, show choice, otherwise go to password
+        if (!email || !email.includes('@')) {
+            setError('Please enter a valid email address');
+            return;
+        }
+
+        setLoading(true);
+        await checkEmailForPIN(email);
+        setLoading(false);
+        
         if (hasPIN) {
-            setStep('choice'); // Show: Login with Password OR PIN
+            setStep('choice');
         } else {
             setStep('password');
         }
     };
 
     // ============================================
-    // EMAIL/PASSWORD LOGIN
+    // EMAIL/PASSWORD LOGIN (FIXED)
     // ============================================
     const handlePasswordLogin = async (e) => {
         e.preventDefault();
@@ -55,27 +70,27 @@ export default function Login() {
         setError('');
         
         try {
-            const { data } = await api.post('/auth/login', { email, password });
-            localStorage.setItem('token', data.accessToken);
-            toast.success('Login successful!');
+            // 3. Use Context login() instead of direct API call
+            // This ensures the global 'user' state is updated
+            const result = await login(email, password);
             
-            // If user doesn't have PIN, offer to set it up
-            if (!data.user.pin_enabled) {
-                navigate('/', { state: { showPINSetup: true } });
+            if (result.success) {
+                toast.success('Login successful!');
+                // 4. Navigate using the 'from' location
+                navigate(from, { replace: true });
             } else {
-                navigate('/');
+                setError(result.message);
+                toast.error(result.message);
             }
         } catch (err) {
-            const message = err.response?.data?.error || 'Login failed';
-            setError(message);
-            toast.error(message);
+            setError('An unexpected error occurred');
         } finally {
             setLoading(false);
         }
     };
 
     // ============================================
-    // QUICK LOGIN WITH PIN (Groww-style)
+    // QUICK LOGIN WITH PIN (FIXED)
     // ============================================
     const handlePINLogin = async (e) => {
         e.preventDefault();
@@ -83,15 +98,36 @@ export default function Login() {
         setError('');
         
         try {
-            const { data } = await api.post('/auth/pin/login', { email, pin });
-            localStorage.setItem('token', data.accessToken);
-            toast.success('Quick login successful!');
-            navigate('/');
+            // 5. Use Context pinLogin()
+            const result = await pinLogin(email, pin);
+            
+            if (result.success) {
+                toast.success('Quick login successful!');
+                navigate(from, { replace: true });
+            } else {
+                setError(result.message);
+                toast.error(result.message);
+                setPin(''); 
+            }
         } catch (err) {
-            const message = err.response?.data?.error || 'Invalid PIN';
-            setError(message);
-            toast.error(message);
-            setPin(''); // Clear PIN on error
+            setError('An unexpected error occurred');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleGoogleSuccess = async (credentialResponse) => {
+        setLoading(true);
+        try {
+            const result = await googleLogin(credentialResponse.credential);
+            if (result.success) {
+                navigate(from, { replace: true });
+                toast.success('Welcome back!');
+            } else {
+                toast.error(result.message);
+            }
+        } catch (error) {
+            toast.error('Google login failed');
         } finally {
             setLoading(false);
         }
@@ -122,9 +158,7 @@ export default function Login() {
                     {step === 'email' && (
                         <form onSubmit={handleEmailSubmit} className="space-y-6">
                             <div>
-                                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                                    Email Address
-                                </label>
+                                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Email Address</label>
                                 <div className="relative">
                                     <Mail className="absolute left-3 top-3.5 text-gray-400" size={18} />
                                     <input
@@ -143,40 +177,43 @@ export default function Login() {
                                 type="submit"
                                 className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-lg transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2"
                             >
-                                Next <ArrowRight size={20} />
+                                {loading ? <Loader2 className="animate-spin" size={20} /> : <>Next <ArrowRight size={20} /></>}
                             </button>
+                            
+                            <div className="relative my-4">
+                                <div className="absolute inset-0 flex items-center">
+                                    <div className="w-full border-t border-gray-300 dark:border-dark-border-primary"></div>
+                                </div>
+                                <div className="relative flex justify-center text-sm">
+                                    <span className="px-2 bg-white dark:bg-gray-800 text-gray-500">Or continue with</span>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-center">
+                                <GoogleLogin
+                                    onSuccess={handleGoogleSuccess}
+                                    onError={() => toast.error('Google Login Failed')}
+                                    theme="filled_blue"
+                                    shape="pill"
+                                />
+                            </div>
                         </form>
                     )}
 
-                    {/* STEP 2: CHOICE (Password or PIN) - Only shown if user has PIN */}
+                    {/* STEP 2: CHOICE (Password or PIN) */}
                     {step === 'choice' && (
                         <div className="space-y-4">
                             <div className="text-center mb-6">
-                                <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    Logging in as <span className="font-bold text-gray-900 dark:text-white">{email}</span>
-                                </p>
-                                <button 
-                                    onClick={() => setStep('email')}
-                                    className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline mt-1"
-                                >
-                                    Change email
-                                </button>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">Logging in as <span className="font-bold text-gray-900 dark:text-white">{email}</span></p>
+                                <button onClick={() => setStep('email')} className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline mt-1">Change email</button>
                             </div>
 
-                            <button
-                                onClick={() => setStep('pin')}
-                                className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-lg transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2"
-                            >
-                                <Hash size={20} />
-                                Login with PIN
+                            <button onClick={() => setStep('pin')} className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-lg transition-all flex items-center justify-center gap-2">
+                                <Hash size={20} /> Login with PIN
                             </button>
 
-                            <button
-                                onClick={() => setStep('password')}
-                                className="w-full py-4 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-bold rounded-lg transition-all flex items-center justify-center gap-2"
-                            >
-                                <Lock size={20} />
-                                Login with Password
+                            <button onClick={() => setStep('password')} className="w-full py-4 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-bold rounded-lg transition-all flex items-center justify-center gap-2">
+                                <Lock size={20} /> Login with Password
                             </button>
                         </div>
                     )}
@@ -184,22 +221,13 @@ export default function Login() {
                     {/* STEP 3: PASSWORD INPUT */}
                     {step === 'password' && (
                         <form onSubmit={handlePasswordLogin} className="space-y-6">
-                            <div className="text-center mb-6">
-                                <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    Logging in as <span className="font-bold text-gray-900 dark:text-white">{email}</span>
-                                </p>
-                                <button 
-                                    onClick={() => setStep('email')}
-                                    className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline mt-1"
-                                >
-                                    Change email
-                                </button>
+                             <div className="text-center mb-6">
+                                <p className="text-sm text-gray-600 dark:text-gray-400">Logging in as <span className="font-bold text-gray-900 dark:text-white">{email}</span></p>
+                                <button type="button" onClick={() => setStep('email')} className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline mt-1">Change email</button>
                             </div>
 
                             <div>
-                                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                                    Password
-                                </label>
+                                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Password</label>
                                 <div className="relative">
                                     <Lock className="absolute left-3 top-3.5 text-gray-400" size={18} />
                                     <input
@@ -214,87 +242,43 @@ export default function Login() {
                                 </div>
                             </div>
 
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-lg transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                            >
-                                {loading ? (
-                                    <>
-                                        <Loader2 className="animate-spin" size={20} />
-                                        Signing In...
-                                    </>
-                                ) : (
-                                    <>
-                                        <LogIn size={20} />
-                                        Sign In
-                                    </>
-                                )}
+                            <button type="submit" disabled={loading} className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-lg transition-all flex items-center justify-center gap-2">
+                                {loading ? <><Loader2 className="animate-spin" size={20} /> Signing In...</> : <><LogIn size={20} /> Sign In</>}
                             </button>
 
                             {hasPIN && (
-                                <button
-                                    type="button"
-                                    onClick={() => setStep('choice')}
-                                    className="w-full text-sm text-emerald-600 dark:text-emerald-400 hover:underline"
-                                >
+                                <button type="button" onClick={() => setStep('choice')} className="w-full text-sm text-emerald-600 dark:text-emerald-400 hover:underline mt-4">
                                     Back to login options
                                 </button>
                             )}
                         </form>
                     )}
 
-                    {/* STEP 4: PIN INPUT (Groww-style) */}
+                    {/* STEP 4: PIN INPUT */}
                     {step === 'pin' && (
                         <form onSubmit={handlePINLogin} className="space-y-6">
                             <div className="text-center mb-6">
-                                <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    Logging in as <span className="font-bold text-gray-900 dark:text-white">{email}</span>
-                                </p>
-                                <button 
-                                    onClick={() => setStep('choice')}
-                                    className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline mt-1"
-                                >
-                                    Use different method
-                                </button>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">Logging in as <span className="font-bold text-gray-900 dark:text-white">{email}</span></p>
+                                <button type="button" onClick={() => setStep('choice')} className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline mt-1">Use different method</button>
                             </div>
 
                             <div>
-                                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 text-center">
-                                    Enter your 4-digit PIN
-                                </label>
+                                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 text-center">Enter your 4-digit PIN</label>
                                 <input
                                     type="password"
                                     inputMode="numeric"
                                     value={pin}
-                                    onChange={(e) => {
-                                        const value = e.target.value.replace(/\D/g, '').slice(0, 4);
-                                        setPin(value);
-                                    }}
+                                    onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
                                     className="w-full px-4 py-4 rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-center text-3xl tracking-[1em] font-bold focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
                                     placeholder="••••"
                                     maxLength="4"
                                     required
                                     autoFocus
                                 />
-                                <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-2">
-                                    Enter your secure 4-digit PIN
-                                </p>
                             </div>
 
-                            <button
-                                type="submit"
-                                disabled={loading || pin.length !== 4}
-                                className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                            >
-                                {loading ? (
-                                    <>
-                                        <Loader2 className="animate-spin" size={20} />
-                                        Verifying...
-                                    </>
-                                ) : (
-                                    'Login'
-                                )}
+                            <button type="submit" disabled={loading || pin.length !== 4} className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                                {loading ? <><Loader2 className="animate-spin" size={20} /> Verifying...</> : 'Login'}
                             </button>
                         </form>
                     )}
@@ -302,10 +286,7 @@ export default function Login() {
 
                 {/* Footer */}
                 <p className="mt-8 text-center text-sm text-gray-600 dark:text-gray-400">
-                    Don't have an account?{' '}
-                    <Link to="/register" className="text-emerald-600 dark:text-emerald-400 font-bold hover:underline">
-                        Create Account
-                    </Link>
+                    Don't have an account? <Link to="/register" className="text-emerald-600 dark:text-emerald-400 font-bold hover:underline">Create Account</Link>
                 </p>
             </div>
         </div>

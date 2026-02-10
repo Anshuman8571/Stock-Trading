@@ -7,7 +7,7 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "test": "NODE_ENV=test jest --runInBand",
+    "test": "NODE_ENV=test jest --runInBand --forceExit",
     "start": "node server.js",
     "dev": "nodemon -L server.js",
     "worker": "node src/workers/order.worker.js"
