@@ -42,6 +42,9 @@ function createFinancialAdvisorChain() {
 
     return {
         invoke: async ({ input, portfolio_summary, market_status }) => {
+            if (process.env.NODE_ENV === 'test') {
+                return { response: "This is a mock AI response for testing." };
+            }
             try {
                 // 1. Format the History for the prompt
                 const historyText = messageHistory.map(m => `${m.role}: ${m.content}`).join("\n");
