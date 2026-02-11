@@ -144,7 +144,7 @@ async function createNotification(userId, title, message) {
     try {
         await db.query(`INSERT INTO notifications (user_id, title, message) VALUES ($1, $2, $3)`, [ userId, title, message ])
     } catch (error) {
-        console.error("Failed to create notifications", err)
+        console.error("Failed to create notifications", error)
     }
 }
 module.exports = { createPendingOrder, getOrderHistory, executeOrder, cancelOrder }
