@@ -1,116 +1,53 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { LogIn, Mail, Lock, Hash, Loader2, ArrowRight } from 'lucide-react';
-import api from '../api/axios';
+import { LogIn, Mail, Lock, Loader2, TrendingUp, Eye, EyeOff, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { GoogleLogin } from '@react-oauth/google';
 
 export default function Login() {
-    const [step, setStep] = useState('email'); // 'email', 'password', 'pin'
-    
-    // 1. Get auth methods from Context
-    const { login, pinLogin, googleLogin } = useAuth(); 
-    
+    const { login, googleLogin } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
-    
-    // 2. Determine where to go after login (Dashboard by default)
     const from = location.state?.from?.pathname || '/';
-    
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [pin, setPin] = useState('');
-    
-    const [hasPIN, setHasPIN] = useState(false);
+
+    const [formData, setFormData] = useState({
+        email: '',
+        password: ''
+    });
+    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    // Check if entered email has PIN enabled
-    const checkEmailForPIN = async (emailToCheck) => {
-        try {
-            const { data } = await api.get(`/auth/pin/check?email=${encodeURIComponent(emailToCheck)}`);
-            if (data.exists && data.pin_enabled) {
-                setHasPIN(true);
-            } else {
-                setHasPIN(false);
-            }
-        } catch (err) {
-            setHasPIN(false);
-        }
-    };
-
-    // When email is entered and user clicks Next
-    const handleEmailSubmit = async (e) => {
-        e.preventDefault();
+    const handleChange = (e) => {
+        setFormData({
+            ...formData,
+            [e.target.name]: e.target.value
+        });
         setError('');
-        
-        if (!email || !email.includes('@')) {
-            setError('Please enter a valid email address');
-            return;
-        }
-
-        setLoading(true);
-        await checkEmailForPIN(email);
-        setLoading(false);
-        
-        if (hasPIN) {
-            setStep('choice');
-        } else {
-            setStep('password');
-        }
     };
 
-    // ============================================
-    // EMAIL/PASSWORD LOGIN (FIXED)
-    // ============================================
-    const handlePasswordLogin = async (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError('');
-        
+
         try {
-            // 3. Use Context login() instead of direct API call
-            // This ensures the global 'user' state is updated
-            const result = await login(email, password);
-            
+            const result = await login(formData.email, formData.password);
+
             if (result.success) {
-                toast.success('Login successful!');
-                // 4. Navigate using the 'from' location
+                toast.success('Welcome back!', {
+                    duration: 3000,
+                    icon: '👋',
+                });
                 navigate(from, { replace: true });
             } else {
-                setError(result.message);
-                toast.error(result.message);
+                setError(result.message || 'Login failed');
+                toast.error(result.message || 'Login failed');
             }
         } catch (err) {
             setError('An unexpected error occurred');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // ============================================
-    // QUICK LOGIN WITH PIN (FIXED)
-    // ============================================
-    const handlePINLogin = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        setError('');
-        
-        try {
-            // 5. Use Context pinLogin()
-            const result = await pinLogin(email, pin);
-            
-            if (result.success) {
-                toast.success('Quick login successful!');
-                navigate(from, { replace: true });
-            } else {
-                setError(result.message);
-                toast.error(result.message);
-                setPin(''); 
-            }
-        } catch (err) {
-            setError('An unexpected error occurred');
+            toast.error('An unexpected error occurred');
         } finally {
             setLoading(false);
         }
@@ -118,176 +55,195 @@ export default function Login() {
 
     const handleGoogleSuccess = async (credentialResponse) => {
         setLoading(true);
+        setError('');
+
         try {
             const result = await googleLogin(credentialResponse.credential);
+
             if (result.success) {
+                toast.success('Welcome!', {
+                    duration: 3000,
+                    icon: '🚀',
+                });
                 navigate(from, { replace: true });
-                toast.success('Welcome back!');
             } else {
-                toast.error(result.message);
+                setError(result.message || 'Google login failed');
+                toast.error(result.message || 'Google login failed');
             }
         } catch (error) {
+            setError('Google login failed');
             toast.error('Google login failed');
         } finally {
             setLoading(false);
         }
     };
 
+    const handleGoogleError = () => {
+        toast.error('Google login failed. Please try again.');
+    };
+
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4">
-            <div className="w-full max-w-md">
-                {/* Logo & Title */}
+        <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-gray-50 via-blue-50 to-cyan-50 dark:from-gray-950 dark:via-primary-950 dark:to-gray-900 transition-colors">
+            {/* Background Pattern */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary-500/10 rounded-full blur-3xl"></div>
+                <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl"></div>
+            </div>
+
+            <div className="w-full max-w-md relative z-10 animate-scale-in">
+                
+                {/* Logo & Header */}
                 <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-emerald-600 to-emerald-700 rounded-2xl shadow-lg mb-4">
-                        <LogIn className="text-white" size={32} />
+                    <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-primary-600 to-cyan-600 rounded-2xl shadow-2xl mb-6 glow-cyan">
+                        <TrendingUp className="text-white" size={36} strokeWidth={2.5} />
                     </div>
-                    <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white">Welcome Back</h1>
-                    <p className="text-emerald-600 dark:text-emerald-400 mt-2">Sign in to continue trading</p>
+                    <h1 className="text-4xl font-bold text-text-primary mb-2 tracking-tight">
+                        Welcome Back
+                    </h1>
+                    <p className="text-text-secondary">
+                        Sign in to access your trading account
+                    </p>
                 </div>
 
-                {/* Main Card */}
-                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-8">
-                    {/* Error Message */}
+                {/* Login Card */}
+                <div className="card-glass p-8">
+                    
+                    {/* Error Alert */}
                     {error && (
-                        <div className="mb-6 p-4 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-700/50 rounded-lg">
-                            <p className="text-sm text-rose-600 dark:text-rose-400 font-medium">{error}</p>
+                        <div className="mb-6 p-4 bg-loss/10 border border-loss/30 rounded-xl animate-slide-down">
+                            <p className="text-sm text-loss font-medium flex items-center gap-2">
+                                <span className="flex-shrink-0 w-5 h-5 bg-loss rounded-full flex items-center justify-center text-white text-xs">!</span>
+                                {error}
+                            </p>
                         </div>
                     )}
 
-                    {/* STEP 1: EMAIL INPUT */}
-                    {step === 'email' && (
-                        <form onSubmit={handleEmailSubmit} className="space-y-6">
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Email Address</label>
-                                <div className="relative">
-                                    <Mail className="absolute left-3 top-3.5 text-gray-400" size={18} />
-                                    <input
-                                        type="email"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-                                        placeholder="you@example.com"
-                                        required
-                                        autoFocus
-                                    />
-                                </div>
-                            </div>
-
-                            <button
-                                type="submit"
-                                className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-lg transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2"
-                            >
-                                {loading ? <Loader2 className="animate-spin" size={20} /> : <>Next <ArrowRight size={20} /></>}
-                            </button>
-                            
-                            <div className="relative my-4">
-                                <div className="absolute inset-0 flex items-center">
-                                    <div className="w-full border-t border-gray-300 dark:border-dark-border-primary"></div>
-                                </div>
-                                <div className="relative flex justify-center text-sm">
-                                    <span className="px-2 bg-white dark:bg-gray-800 text-gray-500">Or continue with</span>
-                                </div>
-                            </div>
-
-                            <div className="flex justify-center">
-                                <GoogleLogin
-                                    onSuccess={handleGoogleSuccess}
-                                    onError={() => toast.error('Google Login Failed')}
-                                    theme="filled_blue"
-                                    shape="pill"
-                                />
-                            </div>
-                        </form>
-                    )}
-
-                    {/* STEP 2: CHOICE (Password or PIN) */}
-                    {step === 'choice' && (
-                        <div className="space-y-4">
-                            <div className="text-center mb-6">
-                                <p className="text-sm text-gray-600 dark:text-gray-400">Logging in as <span className="font-bold text-gray-900 dark:text-white">{email}</span></p>
-                                <button onClick={() => setStep('email')} className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline mt-1">Change email</button>
-                            </div>
-
-                            <button onClick={() => setStep('pin')} className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-lg transition-all flex items-center justify-center gap-2">
-                                <Hash size={20} /> Login with PIN
-                            </button>
-
-                            <button onClick={() => setStep('password')} className="w-full py-4 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-bold rounded-lg transition-all flex items-center justify-center gap-2">
-                                <Lock size={20} /> Login with Password
-                            </button>
-                        </div>
-                    )}
-
-                    {/* STEP 3: PASSWORD INPUT */}
-                    {step === 'password' && (
-                        <form onSubmit={handlePasswordLogin} className="space-y-6">
-                             <div className="text-center mb-6">
-                                <p className="text-sm text-gray-600 dark:text-gray-400">Logging in as <span className="font-bold text-gray-900 dark:text-white">{email}</span></p>
-                                <button type="button" onClick={() => setStep('email')} className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline mt-1">Change email</button>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Password</label>
-                                <div className="relative">
-                                    <Lock className="absolute left-3 top-3.5 text-gray-400" size={18} />
-                                    <input
-                                        type="password"
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-                                        placeholder="••••••••"
-                                        required
-                                        autoFocus
-                                    />
-                                </div>
-                            </div>
-
-                            <button type="submit" disabled={loading} className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-lg transition-all flex items-center justify-center gap-2">
-                                {loading ? <><Loader2 className="animate-spin" size={20} /> Signing In...</> : <><LogIn size={20} /> Sign In</>}
-                            </button>
-
-                            {hasPIN && (
-                                <button type="button" onClick={() => setStep('choice')} className="w-full text-sm text-emerald-600 dark:text-emerald-400 hover:underline mt-4">
-                                    Back to login options
-                                </button>
-                            )}
-                        </form>
-                    )}
-
-                    {/* STEP 4: PIN INPUT */}
-                    {step === 'pin' && (
-                        <form onSubmit={handlePINLogin} className="space-y-6">
-                            <div className="text-center mb-6">
-                                <p className="text-sm text-gray-600 dark:text-gray-400">Logging in as <span className="font-bold text-gray-900 dark:text-white">{email}</span></p>
-                                <button type="button" onClick={() => setStep('choice')} className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline mt-1">Use different method</button>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 text-center">Enter your 4-digit PIN</label>
+                    {/* Login Form */}
+                    <form onSubmit={handleSubmit} className="space-y-5">
+                        
+                        {/* Email Input */}
+                        <div>
+                            <label className="block text-sm font-semibold text-text-primary mb-2">
+                                Email Address
+                            </label>
+                            <div className="relative">
+                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-text-tertiary" size={20} />
                                 <input
-                                    type="password"
-                                    inputMode="numeric"
-                                    value={pin}
-                                    onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                                    className="w-full px-4 py-4 rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-center text-3xl tracking-[1em] font-bold focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-                                    placeholder="••••"
-                                    maxLength="4"
+                                    type="email"
+                                    name="email"
+                                    value={formData.email}
+                                    onChange={handleChange}
+                                    className="w-full pl-12 pr-4 py-3.5 rounded-xl border-2 border-border-primary bg-bg-primary text-text-primary placeholder-text-tertiary focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all"
+                                    placeholder="you@example.com"
                                     required
-                                    autoFocus
+                                    autoComplete="email"
                                 />
                             </div>
+                        </div>
 
-                            <button type="submit" disabled={loading || pin.length !== 4} className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2">
-                                {loading ? <><Loader2 className="animate-spin" size={20} /> Verifying...</> : 'Login'}
-                            </button>
-                        </form>
-                    )}
+                        {/* Password Input */}
+                        <div>
+                            <label className="block text-sm font-semibold text-text-primary mb-2">
+                                Password
+                            </label>
+                            <div className="relative">
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-text-tertiary" size={20} />
+                                <input
+                                    type={showPassword ? "text" : "password"}
+                                    name="password"
+                                    value={formData.password}
+                                    onChange={handleChange}
+                                    className="w-full pl-12 pr-12 py-3.5 rounded-xl border-2 border-border-primary bg-bg-primary text-text-primary placeholder-text-tertiary focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all"
+                                    placeholder="••••••••"
+                                    required
+                                    autoComplete="current-password"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-secondary transition-colors"
+                                >
+                                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Sign In Button */}
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full py-4 bg-gradient-to-r from-primary-600 to-cyan-600 hover:from-primary-700 hover:to-cyan-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
+                        >
+                            {loading ? (
+                                <>
+                                    <Loader2 className="animate-spin" size={20} />
+                                    Signing In...
+                                </>
+                            ) : (
+                                <>
+                                    <LogIn size={20} />
+                                    Sign In
+                                </>
+                            )}
+                        </button>
+                    </form>
+
+                    {/* Divider */}
+                    <div className="relative my-6">
+                        <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t border-border-primary"></div>
+                        </div>
+                        <div className="relative flex justify-center text-sm">
+                            <span className="px-4 bg-bg-primary text-text-tertiary font-medium">
+                                Or continue with
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Google Sign In */}
+                    <div className="flex justify-center">
+                        <GoogleLogin
+                            onSuccess={handleGoogleSuccess}
+                            onError={handleGoogleError}
+                            theme="outline"
+                            size="large"
+                            text="signin_with"
+                            shape="rectangular"
+                            width="100%"
+                        />
+                    </div>
                 </div>
 
-                {/* Footer */}
-                <p className="mt-8 text-center text-sm text-gray-600 dark:text-gray-400">
-                    Don't have an account? <Link to="/register" className="text-emerald-600 dark:text-emerald-400 font-bold hover:underline">Create Account</Link>
-                </p>
+                {/* Footer Links */}
+                <div className="mt-8 text-center space-y-3">
+                    <p className="text-sm text-text-secondary">
+                        Don't have an account?{' '}
+                        <Link 
+                            to="/register" 
+                            className="text-primary-600 dark:text-primary-400 font-bold hover:underline transition-colors inline-flex items-center gap-1"
+                        >
+                            Create Account
+                            <Sparkles size={14} />
+                        </Link>
+                    </p>
+                    <p className="text-xs text-text-tertiary">
+                        <a href="#" className="hover:text-primary-600 transition-colors">
+                            Forgot your password?
+                        </a>
+                    </p>
+                </div>
+
+                {/* Trust Indicators */}
+                <div className="mt-8 flex items-center justify-center gap-6 text-xs text-text-tertiary">
+                    <span className="flex items-center gap-1">
+                        <div className="w-2 h-2 bg-profit rounded-full"></div>
+                        Secure Login
+                    </span>
+                    <span className="flex items-center gap-1">
+                        <div className="w-2 h-2 bg-primary-500 rounded-full"></div>
+                        256-bit Encryption
+                    </span>
+                </div>
             </div>
         </div>
     );

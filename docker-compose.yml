@@ -68,26 +68,16 @@ services:
       args: 
         - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
     ports:
-      - 5173:80
+      - 5173:5173
     environment:
       - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
+      - CHOKIDAR_USEPOLLING=true
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm run dev -- --host
     depends_on:
       - backend
-
-
-  # limit-worker:
-  #   # profiles: ["develop"]
-  #   build: ./Backend
-  #   command: node src/workers/limitScheduler.js
-  #   env_file:
-  #     - ./Backend/.env
-  #   volumes:
-  #     - ./Backend:/app
-  #     - /app/node_modules
-  #   depends_on:
-  #     - postgres
-  #     - redis
-
 
 volumes:
   pg_data:
