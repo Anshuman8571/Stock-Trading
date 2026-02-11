@@ -1,9 +1,3 @@
--- ============================================
--- Migration: Enhanced Authentication Features
--- Adds support for: Google OAuth, Phone/OTP, PIN login
--- ============================================
-
--- Add new columns to users table
 ALTER TABLE users 
 ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(20) DEFAULT 'email',
 ADD COLUMN IF NOT EXISTS google_id VARCHAR(255),
