@@ -1,11 +1,13 @@
 const jwt = require("jsonwebtoken");
-
+const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'test' ? "test-secret-key" : undefined);
 function generateAccessToken(payload){
-    return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "15m" })
+    if (!JWT_SECRET) throw new Error("JWT_SECRET is missing");
+    return jwt.sign(payload, JWT_SECRET, { expiresIn: "15m" })
 }
 
 function generateRefreshToken(payload){
-    return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn:"7d" })
+    if (!JWT_SECRET) throw new Error("JWT_SECRET is missing");
+    return jwt.sign(payload, JWT_SECRET, { expiresIn:"7d" })
 }
 
 module.exports = { generateAccessToken, generateRefreshToken }

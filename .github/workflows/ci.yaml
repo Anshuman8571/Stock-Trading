@@ -30,6 +30,7 @@ jobs:
             DATABASE_URL: postgres://postgres:GattaRoad@localhost:5432/stock-trading
             NODE_ENV: test
             GEMINI_API_KEY: dummy-key-for-cli
+            JWT_SECRET: test-secret-key-for-ci
 
         steps:
             - name: Checkout repository
