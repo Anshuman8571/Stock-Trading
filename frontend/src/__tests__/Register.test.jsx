@@ -32,9 +32,17 @@ describe('Register Component Integration', () => {
         );
 
         // Robust selection by name attribute
+        const FullName = container.querySelector('input[name="fullName"]');
+        const UserName = container.querySelector('input[name="username"]');
+        const Email = container.querySelector('input[name="email"]');
+        const Phone = container.querySelector('input[name="phone"]');
         const passwordInput = container.querySelector('input[name="password"]');
         const confirmInput = container.querySelector('input[name="confirmPassword"]');
         
+        fireEvent.change(FullName, { target: {value: "Anshu"} });
+        fireEvent.change(UserName, { target: {value: "anshu871"} });
+        fireEvent.change(Email, { target: { value: "anshu@example.com" } });
+        fireEvent.change(Phone, { target: { value: "1234567890" } })
         fireEvent.change(passwordInput, { target: { value: 'pass123' } });
         fireEvent.change(confirmInput, { target: { value: 'pass456' } });
 
