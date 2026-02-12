@@ -1,25 +1,27 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { GoogleOAuthProvider } from '@react-oauth/google';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import { ThemeProvider } from './context/ThemeContext';
-import Navbar from './components/Navbar';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
-import Trade from './pages/Trade';
-import Orders from './pages/Orders';
-import AIAdvisor from './pages/AIAdvisor';
+
+// Adding explicit .jsx extensions to resolve build environment pathing issues
+import { AuthProvider, useAuth } from './context/AuthContext.jsx';
+import { ThemeProvider } from './context/ThemeContext.jsx';
+import Navbar from './components/Navbar.jsx';
+import Login from './pages/Login.jsx';
+import Register from './pages/Register.jsx';
+import Dashboard from './pages/Dashboard.jsx';
+import Trade from './pages/Trade.jsx';
+import Orders from './pages/Orders.jsx';
+import AIAdvisor from './pages/AIAdvisor.jsx';
 
 const ProtectedRoute = ({ children }) => {
     const { user, loading } = useAuth();
     
     if (loading) {
         return (
-            <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-900 transition-colors">
+            <div className="flex h-screen items-center justify-center bg-slate-50 dark:bg-gray-950">
                 <div className="flex flex-col items-center gap-4">
-                    <div className="animate-spin rounded-full h-16 w-16 border-4 border-emerald-500 border-t-transparent"></div>
-                    <p className="text-gray-600 dark:text-gray-400 font-medium">Loading...</p>
+                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-orange-500 border-t-transparent"></div>
+                    <p className="text-slate-600 dark:text-slate-400 font-medium tracking-wide">AUTHENTICATING...</p>
                 </div>
             </div>
         );
@@ -29,23 +31,22 @@ const ProtectedRoute = ({ children }) => {
 };
 
 const Layout = ({ children }) => (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white font-sans transition-colors duration-200">
+    <div className="min-h-screen bg-white dark:bg-gray-950 text-slate-900 dark:text-white font-sans transition-colors duration-200">
         <Navbar />
-        <main className="container mx-auto px-4 py-8 max-w-7xl pb-24 md:pb-8">
+        <main className="w-full pb-24 md:pb-8">
             {children}
         </main>
     </div>
 );
 
 export default function App() {
-    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
-
-    if (!googleClientId) {
-        console.warn('Warning: VITE_GOOGLE_CLIENT_ID is not defined. Google OAuth will not work.');
-    }
+    // Handling potential environment variable access warnings
+    const googleClientId = typeof import.meta !== 'undefined' && import.meta.env 
+        ? import.meta.env.VITE_GOOGLE_CLIENT_ID 
+        : '';
 
     return (
-        <GoogleOAuthProvider clientId={googleClientId}>
+        <GoogleOAuthProvider clientId={googleClientId || 'fallback-id'}>
             <BrowserRouter>
                 <ThemeProvider>
                     <AuthProvider>
@@ -54,24 +55,13 @@ export default function App() {
                             toastOptions={{
                                 duration: 4000,
                                 style: {
-                                    background: 'var(--toast-bg)',
-                                    color: 'var(--toast-text)',
-                                    borderRadius: '12px',
+                                    background: '#ffffff',
+                                    color: '#0f172a',
+                                    borderRadius: '16px',
                                     padding: '16px',
                                     fontSize: '14px',
-                                    fontWeight: '500',
-                                },
-                                success: {
-                                    iconTheme: {
-                                        primary: '#10b981',
-                                        secondary: '#fff',
-                                    },
-                                },
-                                error: {
-                                    iconTheme: {
-                                        primary: '#ef4444',
-                                        secondary: '#fff',
-                                    },
+                                    fontWeight: '600',
+                                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
                                 },
                             }}
                         />

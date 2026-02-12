@@ -8,7 +8,7 @@ const model = new ChatGoogleGenerativeAI({
     apiKey: apiKey,
     model: "gemini-2.5-flash", 
     temperature: 0.7,
-    maxOutputTokens: 1000, 
+    maxOutputTokens: 2000, 
 });
 
 // 2. Define Prompts (Explicit & Clear)
