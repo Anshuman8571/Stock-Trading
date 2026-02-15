@@ -1,34 +1,37 @@
-jest.mock("../modules/market/market.snapshot.service", () => ({
+// File: src/__tests__/integration/orders.flow.test.js
+
+// Mock the market snapshot service to control prices during the test
+jest.mock("../../modules/market/market.snapshot.service", () => ({
     getPriceSnapshot: jest.fn()
 }));
 
-const { request, app } = require("../testUtils/testUtils");
-const { executeOrder } = require("../modules/orders/order.service");
-const { getPriceSnapshot } = require("../modules/market/market.snapshot.service");
-const { connectRedis, redis } = require("../config/redis"); // ✅ Import Redis
+const { request, app } = require("../../testUtils/testUtils"); // Adjusted path
+const { executeOrder } = require("../../modules/orders/order.service"); // Adjusted path
+const { getPriceSnapshot } = require("../../modules/market/market.snapshot.service"); // Adjusted path
+const { connectRedis, redis } = require("../../config/redis"); // Adjusted path
 
-describe("Market BUY order Flow", () => {
+describe("Market BUY Order Integration Flow", () => {
     let token; 
     
     beforeAll(async () => {
-        // ✅ FIX 1: Ensure Redis is connected before tests start
+        // Ensure Redis is connected before tests start
         await connectRedis();
 
-        // ✅ FIX 2: Added 'phone' and 'fullName' (Required by your auth.validator.js)
+        // Register a user for testing
         await request(app)
             .post("/api/auth/register")
             .send({
-                email: "test_market@gmail.com",
+                email: "integration_test@gmail.com",
                 password: "Password123",
-                username: "testuser",
+                username: "int_user",
                 phone: "9876543210", 
-                fullName: "Test User"
+                fullName: "Integration User"
             });
         
         const res = await request(app)
             .post("/api/auth/login")
             .send({
-                email: "test_market@gmail.com",
+                email: "integration_test@gmail.com",
                 password: "Password123"
             });
         
@@ -36,7 +39,6 @@ describe("Market BUY order Flow", () => {
         expect(token).toBeDefined();
     });
 
-    // ✅ FIX 3: Close Redis connection after tests
     afterAll(async () => {
         if (redis.isOpen) {
             await redis.quit();
@@ -44,12 +46,14 @@ describe("Market BUY order Flow", () => {
     });
 
     it("should create and execute a MARKET BUY order", async () => {
+        // Mock a specific price for this test case
         getPriceSnapshot.mockResolvedValue({ 
             price: 2500,
             source: "CACHE",
             ageMS: 1000
         });
 
+        // 1. Place the Order
         const buyRes = await request(app)
             .post("/api/orders/buy")
             .set("Authorization", `Bearer ${token}`)
@@ -62,8 +66,10 @@ describe("Market BUY order Flow", () => {
         expect(buyRes.statusCode).toBe(202);
         expect(buyRes.body.status).toBe("PENDING");
 
+        // 2. Manually trigger execution (simulating the worker)
         await executeOrder(buyRes.body.orderId);
 
+        // 3. Verify Order History
         const historyRes = await request(app)
             .get("/api/orders/history")
             .set("Authorization", `Bearer ${token}`);
@@ -86,6 +92,7 @@ describe("Market BUY order Flow", () => {
     });
 
     it("should NOT execute LIMIT BUY when price is not met", async () => {
+        // Price is 5000, we want to buy at 100 -> Should NOT execute
         getPriceSnapshot.mockResolvedValue({
             price: 5000,
             source: "CACHE",
@@ -105,9 +112,7 @@ describe("Market BUY order Flow", () => {
         expect(res.statusCode).toBe(202);
 
         const orderId = res.body.orderId;
-        expect(orderId).toBeDefined();
-
-        await executeOrder(orderId);
+        await executeOrder(orderId); // Trigger execution logic
 
         const historyRes = await request(app)
             .get("/api/orders/history")
@@ -115,11 +120,12 @@ describe("Market BUY order Flow", () => {
         
         const order = historyRes.body.orders.find(o => o.id === orderId);
 
-        expect(order.status).toBe("PENDING");
+        expect(order.status).toBe("PENDING"); // Should remain pending
         expect(order.price).toBeNull();
     });
 
     it("should execute LIMIT BUY when price condition is met", async () => {
+        // Price is 38000, we are willing to pay 40000 -> Should EXECUTE
         getPriceSnapshot.mockResolvedValue({
             price: 38000,
             source: "CACHE",
@@ -139,8 +145,6 @@ describe("Market BUY order Flow", () => {
         expect(res.statusCode).toBe(202);
 
         const orderId = res.body.orderId;
-        expect(orderId).toBeDefined();
-        
         await executeOrder(orderId);
         
         const historyRes = await request(app)

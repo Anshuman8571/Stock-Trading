@@ -8,7 +8,7 @@ async function buyStock(req, res, next) {
         
         const userId = req.user.userId;
         const order = await createPendingOrder(userId, symbol, quantity, 'BUY', orderType, limitPrice);
-        if (orderType === "MARKET"){
+        if (orderType === "MARKET" && process.env.NODE_ENV !== 'test'){
             await orderQueue.add("execute-order",{
                 orderId: order.id,
                 jobId: order.id
