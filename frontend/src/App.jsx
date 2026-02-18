@@ -12,6 +12,7 @@ import Dashboard from './pages/Dashboard.jsx';
 import Trade from './pages/Trade.jsx';
 import Orders from './pages/Orders.jsx';
 import AIAdvisor from './pages/AIAdvisor.jsx';
+import Wallet from './pages/Wallet.jsx';
 
 const ProtectedRoute = ({ children }) => {
     const { user, loading } = useAuth();
@@ -84,6 +85,17 @@ export default function App() {
                                     <ProtectedRoute>
                                         <Layout>
                                             <Trade />
+                                        </Layout>
+                                    </ProtectedRoute>
+                                } 
+                            />
+                            {/* ✅ Added Wallet Route */}
+                            <Route 
+                                path="/wallet" 
+                                element={
+                                    <ProtectedRoute>
+                                        <Layout>
+                                            <Wallet />
                                         </Layout>
                                     </ProtectedRoute>
                                 } 

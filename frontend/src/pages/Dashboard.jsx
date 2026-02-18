@@ -1,18 +1,31 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import api from '../api/axios';
 import { TrendingUp, Wallet, PieChart, ArrowUpRight, ArrowDownRight, Zap } from 'lucide-react';
 import Button from '../components/ui/Button';
 import PriceDisplay from '../components/trading/PriceDisplay';
 import { usePortfolioStore } from '../store/usePortfolioStore';
+import { getWalletBalance } from '../services/walletService'; // ✅ Import Wallet Service
+
 export default function Dashboard() {
     const { user } = useAuth();
     const { analytics, loading, fetchAnalytics } = usePortfolioStore();
+    const [walletBalance, setWalletBalance] = useState(0); // ✅ State for Wallet Balance
 
     useEffect(() => {
-        fetchAnalytics(); // Will instantly return if data is already cached!
+        fetchAnalytics(); 
+        fetchWalletData(); // ✅ Fetch Wallet Balance on mount
     }, []);
+
+    // ✅ Fetch function
+    const fetchWalletData = async () => {
+        try {
+            const balance = await getWalletBalance();
+            setWalletBalance(Number(balance));
+        } catch (error) {
+            console.error("Failed to fetch wallet balance", error);
+        }
+    };
 
     if (loading) {
         return (
@@ -60,7 +73,7 @@ export default function Dashboard() {
                 {/* Hero Stats Section */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     
-                    {/* Main Portfolio Card - Vibrant Orange Gradient */}
+                    {/* Main Portfolio Card */}
                     <div className="lg:col-span-2 relative overflow-hidden rounded-3xl bg-gradient-to-br from-orange-500 to-red-600 p-8 text-white shadow-xl shadow-orange-500/15">
                         <div className="relative z-10 flex flex-col justify-between h-full min-h-[180px]">
                             <div>
@@ -91,7 +104,7 @@ export default function Dashboard() {
                             </div>
                         </div>
 
-                        {/* Decorational Background Shapes */}
+                        {/* Background Shapes */}
                         <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
                         <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-48 h-48 bg-black/10 rounded-full blur-2xl"></div>
                     </div>
@@ -115,13 +128,16 @@ export default function Dashboard() {
                             </div>
                             <div className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-100">
                                 <span className="text-sm text-slate-600 font-medium">Available Cash</span>
-                                <span className="text-lg font-bold text-slate-900">₹0.00</span>
+                                {/* ✅ Updated to show real balance */}
+                                <span className="text-lg font-bold text-slate-900">
+                                    <PriceDisplay value={walletBalance} showCurrency={true} />
+                                </span>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Holdings Section - Full Width */}
+                {/* Holdings Section */}
                 <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
                     <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white">
                         <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">

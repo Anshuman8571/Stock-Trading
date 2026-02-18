@@ -7,7 +7,8 @@ import {
     BrainCircuit, 
     LogOut, 
     TrendingUp,
-    UserCircle
+    UserCircle,
+    Wallet // ✅ Added Wallet icon import
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -28,6 +29,7 @@ export default function Navbar() {
     const navLinks = [
         { name: 'Dashboard', path: '/', icon: LayoutDashboard },
         { name: 'Trade', path: '/trade', icon: Activity },
+        { name: 'Wallet', path: '/wallet', icon: Wallet }, // ✅ Added Wallet Link
         { name: 'Orders', path: '/orders', icon: History },
         { name: 'AI Advisor', path: '/ai-advisor', icon: BrainCircuit },
     ];

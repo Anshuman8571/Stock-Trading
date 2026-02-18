@@ -1,6 +1,3 @@
-// File: src/__tests__/integration/orders.flow.test.js
-
-// Mock the market snapshot service to control prices during the test
 jest.mock("../../modules/market/market.snapshot.service", () => ({
     getPriceSnapshot: jest.fn()
 }));
@@ -9,10 +6,10 @@ const { request, app } = require("../../testUtils/testUtils"); // Adjusted path
 const { executeOrder } = require("../../modules/orders/order.service"); // Adjusted path
 const { getPriceSnapshot } = require("../../modules/market/market.snapshot.service"); // Adjusted path
 const { connectRedis, redis } = require("../../config/redis"); // Adjusted path
-
+const db = require("../../config/db")
 describe("Market BUY Order Integration Flow", () => {
     let token; 
-    
+    let userId;
     beforeAll(async () => {
         // Ensure Redis is connected before tests start
         await connectRedis();
@@ -36,6 +33,8 @@ describe("Market BUY Order Integration Flow", () => {
             });
         
         token = res.body.accessToken; 
+        userId = res.body.user.id;
+        await db.query("UPDATE users SET wallet_balance = 1000000 WHERE id = $1",[ userId ])
         expect(token).toBeDefined();
     });
 

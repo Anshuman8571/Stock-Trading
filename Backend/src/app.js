@@ -10,10 +10,9 @@ const marketRoutes = require("./modules/market/market.routes")
 const { requeueLimitOrders } = require("./cron/limitOrder.cron")
 const { recoverOrders } = require("./recovery/recoveryOrders")
 const aiRoutes = require("./ai/routes/ai.routes")
+const walletRoutes = require("./modules/wallet/wallet.routes")
 const app = express();
 
-// ✅ CRITICAL FIX: Enable trust proxy for Docker/Nginx
-// This fixes the "X-Forwarded-For" warning from express-rate-limit
 app.set('trust proxy', 1);
 
 app.use(cors({
@@ -32,6 +31,7 @@ app.use("/api/ai",aiRoutes)
 app.use("/api/portfolio",portfolioRoutes)
 app.use("/api/auth",authRoutes)
 app.use("/api/user",userRoutes)
+app.use("/api/wallet", walletRoutes)
 app.use("/api/orders",orderRoutes)
 app.use("/api/market",marketRoutes)
 

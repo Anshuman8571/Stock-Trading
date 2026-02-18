@@ -53,12 +53,17 @@ async function executeOrder(orderId) {
                 return;
             }
         } 
-
+        const totalValue = Number(order.quantity) * price;
         // Update holdings inside the transation
         if(order.side === "BUY"){
+            const userRes = await client.query(`SELECT wallet_balance FROM users WHERE id = $1 FOR UPDATE`, [ order.user_id ]);
+            const currentBalance = Number(userRes.rows[0].wallet_balance);
+            if(currentBalance < totalValue) throw new Error(`Insufficient Wallet Balance. Required: ${ totalValue }, Available: ${currentBalance}`)
+            await client.query(`UPDATE users SET wallet_balance = wallet_balance - $1 WHERE id = $2`, [ totalValue, order.user_id ])
             await updateHoldings(client, order.user_id, symbol, order.quantity, price)
         } else {
             await reduceHoldings(client, order.user_id, symbol, order.quantity);
+            await client.query(`UPDATE users SET wallet_balance = wallet_balance + $1 WHERE id = $2`, [ totalValue, order.user_id ])
         }
 
         // Finalize Order
@@ -82,12 +87,13 @@ async function executeOrder(orderId) {
         console.log("The order get Failed.", orderId)
         if(client){
             console.log("Getting Rollback")
+            failureReason = error.message;
             await client.query("ROLLBACK")
             await client.query(`UPDATE orders SET status = 'FAILED', failure_reason = $1, updated_at = NOW() WHERE id = $2 AND status IN ('PROCESSING')`, [ error.message, orderId ] )
         }
         if(order){
+            await db.query(`UPDATE orders SET status = 'FAILED', failure_reason = $1, updated_at = NOW() WHERE id = $2`, [ failureReason, orderId ])
             await createNotification(order.user_id,"Order Failed",`Your order for ${ order.symbol } failed. Reason: ${ error.message }`)
-
         }
         if(!order) {
             const res = await db.query("SELECT * FROM orders WHERE id = $1", [ orderId ])
