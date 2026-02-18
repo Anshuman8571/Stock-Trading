@@ -81,7 +81,7 @@ jobs:
                 psql -h localhost -U postgres -d stock-trading -f ./docker-entrypoint-initdb.d/05_notifications_and_users.sql
                 psql -h localhost -U postgres -d stock-trading -f ./docker-entrypoint-initdb.d/06_enhanced_auth.sql
                 psql -h localhost -U postgres -d stock-trading -f ./docker-entrypoint-initdb.d/07_missing_variables.sql
-                psql -h localhost -U postgres -d stock-trading -f ./docker-entrypoint-initdb.d/08_Adding_Wallet.sql.sql
+                psql -h localhost -U postgres -d stock-trading -f ./docker-entrypoint-initdb.d/08_Adding_Wallet.sql
                 
             - name: Run backend test
               run: npm test
