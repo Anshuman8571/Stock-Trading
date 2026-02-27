@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import api from '../api/axios.js';
 import toast from 'react-hot-toast';
-import { RefreshCw, ArrowRight, TrendingUp, TrendingDown, Clock, DollarSign, Activity, Zap, ShieldCheck } from 'lucide-react';
+import { RefreshCw, ArrowRight, TrendingUp, TrendingDown, Clock, IndianRupee, Activity, Zap, ShieldCheck, AlertCircle } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import Card from '../components/ui/Card.jsx';
+import { getWalletBalance } from '../services/walletService';
 import PriceDisplay from '../components/trading/PriceDisplay.jsx';
 
 export default function Trade() {
@@ -14,7 +15,57 @@ export default function Trade() {
     const [limitPrice, setLimitPrice] = useState('');
     const [side, setSide] = useState('BUY');
     const [loading, setLoading] = useState(false);
+    
+    // ✅ Wallet & Price States
+    const [walletBalance, setWalletBalance] = useState(0);
+    const [currentMarketPrice, setCurrentMarketPrice] = useState(0);
+    const [fetchingPrice, setFetchingPrice] = useState(false);
+    
     const { user } = useAuth();
+
+    // Fetch wallet balance on component mount
+    useEffect(() => {
+        const fetchWalletData = async () => {
+            try {
+                const balance = await getWalletBalance();
+                setWalletBalance(Number(balance));
+            } catch (error) {
+                console.error("Failed to fetch wallet balance", error);
+            }
+        };
+        fetchWalletData();
+    }, []);
+
+    // ✅ Fetch Live Market Price when Symbol changes (Debounced)
+    useEffect(() => {
+        if (symbol.length >= 2) {
+            setFetchingPrice(true);
+            const timer = setTimeout(async () => {
+                try {
+                    const res = await api.get(`/market/price/${symbol}`);
+                    if (res.data && res.data.price) {
+                        setCurrentMarketPrice(Number(res.data.price));
+                    } else {
+                        setCurrentMarketPrice(0);
+                    }
+                } catch (error) {
+                    setCurrentMarketPrice(0);
+                } finally {
+                    setFetchingPrice(false);
+                }
+            }, 600); // 600ms debounce
+
+            return () => clearTimeout(timer);
+        } else {
+            setCurrentMarketPrice(0);
+            setFetchingPrice(false);
+        }
+    }, [symbol]);
+
+    // ✅ Calculation Logic
+    const activePrice = orderType === 'LIMIT' ? Number(limitPrice) : currentMarketPrice;
+    const estimatedTotal = Number(quantity) * (activePrice || 0);
+    const isInsufficientFunds = side === 'BUY' && estimatedTotal > walletBalance && activePrice > 0;
 
     // SSE Listener for real-time updates
     useEffect(() => {
@@ -30,6 +81,10 @@ export default function Trade() {
                         icon: '🚀',
                         style: { borderRadius: '16px', fontWeight: 'bold' }
                     });
+                    
+                    // Refresh balance after a successful trade
+                    getWalletBalance().then(bal => setWalletBalance(Number(bal))).catch(console.error);
+                    
                 } else if (data.status === 'FAILED') {
                     toast.error(`Order Failed: ${data.reason}`);
                 }
@@ -42,6 +97,11 @@ export default function Trade() {
         e.preventDefault();
         if (!symbol) return toast.error("Enter a stock symbol");
         if (orderType === 'LIMIT' && !limitPrice) return toast.error("Enter a limit price");
+        
+        // ✅ Prevent trade if funds are insufficient
+        if (isInsufficientFunds) {
+            return toast.error("Insufficient wallet balance for this trade");
+        }
 
         setLoading(true);
         const toastId = toast.loading("Processing Order...");
@@ -57,6 +117,7 @@ export default function Trade() {
 
             await api.post(endpoint, payload);
             toast.success("Order Placed Successfully", { id: toastId });
+            
             // Reset form
             setSymbol('');
             setQuantity(1);
@@ -71,7 +132,7 @@ export default function Trade() {
     return (
         <div className="relative w-full min-h-screen bg-slate-50/50 font-sans text-slate-900 overflow-hidden selection:bg-orange-100 selection:text-orange-600">
             
-            {/* AMBIENT BACKGROUND BLOBS (Strictly Light Theme) */}
+            {/* AMBIENT BACKGROUND BLOBS */}
             <div className="absolute top-[-5%] right-[-5%] w-[500px] h-[500px] bg-orange-200/40 rounded-full blur-[120px] animate-pulse pointer-events-none" />
             <div className="absolute bottom-[10%] left-[-10%] w-[600px] h-[600px] bg-amber-100/50 rounded-full blur-[100px] pointer-events-none" />
 
@@ -99,7 +160,7 @@ export default function Trade() {
                     {/* LEFT PANEL: Context & Stats */}
                     <div className="lg:col-span-5 space-y-6">
                         
-                        {/* Market Snapshot Card (Vibrant Orange Gradient) */}
+                        {/* Market Snapshot Card */}
                         <div className="bg-gradient-to-br from-orange-500 to-red-600 rounded-[32px] p-8 text-white shadow-xl shadow-orange-500/15 relative overflow-hidden group">
                             <div className="relative z-10">
                                 <div className="flex justify-between items-start mb-6">
@@ -131,20 +192,20 @@ export default function Trade() {
                                     </div>
                                 </div>
                             </div>
-                            
-                            {/* Decorative Grid Effect */}
                             <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#ffffff 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
                         </div>
 
-                        {/* Buying Power Card (Clean White) */}
+                        {/* Buying Power Card */}
                         <div className="bg-white backdrop-blur-xl rounded-[32px] p-8 border border-slate-100 shadow-sm group hover:border-orange-200 transition-all">
                             <div className="flex items-center gap-4 mb-4">
                                 <div className="p-3 bg-blue-50 rounded-2xl text-blue-600 group-hover:scale-110 transition-transform">
-                                    <DollarSign size={24} strokeWidth={2.5} />
+                                    <IndianRupee size={24} strokeWidth={2.5} />
                                 </div>
                                 <div>
                                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Available Buying Power</p>
-                                    <h3 className="text-2xl font-black text-slate-900">₹10,00,000.00</h3>
+                                    <h3 className="text-2xl font-black text-slate-900">
+                                        <PriceDisplay value={walletBalance} showCurrency={true} />
+                                    </h3>
                                 </div>
                             </div>
                             <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden mt-6">
@@ -207,7 +268,16 @@ export default function Trade() {
                                 <div className="space-y-6">
                                     {/* Symbol Input */}
                                     <div className="space-y-2">
-                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Stock Symbol</label>
+                                        <div className="flex justify-between items-end mb-1">
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Stock Symbol</label>
+                                            
+                                            {/* ✅ Live Market Price Display */}
+                                            {symbol.length > 0 && (
+                                                <div className="text-[10px] font-bold text-slate-500 tracking-wider">
+                                                    {fetchingPrice ? 'FETCHING...' : currentMarketPrice > 0 ? `LTP: ₹${currentMarketPrice}` : 'NO DATA'}
+                                                </div>
+                                            )}
+                                        </div>
                                         <div className="relative">
                                             <input
                                                 type="text"
@@ -218,7 +288,7 @@ export default function Trade() {
                                                 required
                                             />
                                             <div className="absolute right-0 bottom-4">
-                                                <Zap className="text-orange-500 animate-pulse" size={24} />
+                                                <Zap className={clsx("transition-colors", fetchingPrice ? "text-slate-300 animate-pulse" : "text-orange-500")} size={24} />
                                             </div>
                                         </div>
                                     </div>
@@ -252,31 +322,57 @@ export default function Trade() {
                                     </div>
                                 </div>
 
-                                {/* Order Summary Block */}
-                                <div className="bg-orange-50 rounded-3xl p-6 flex justify-between items-center border border-orange-100">
+                                {/* ✅ Order Summary & Calculation Block */}
+                                <div className={clsx(
+                                    "rounded-3xl p-6 flex justify-between items-center border transition-all duration-300",
+                                    isInsufficientFunds ? "bg-rose-50 border-rose-200" : "bg-orange-50 border-orange-100"
+                                )}>
                                     <div className="space-y-1">
-                                        <p className="text-[10px] font-black text-orange-600/70 uppercase tracking-widest">Estimated Value</p>
-                                        <p className="text-2xl font-black text-orange-600 font-mono">
-                                            {orderType === 'MARKET' ? 'MARKET PRICE' : `₹${(quantity * limitPrice).toLocaleString()}`}
+                                        <p className={clsx(
+                                            "text-[10px] font-black uppercase tracking-widest",
+                                            isInsufficientFunds ? "text-rose-600/70" : "text-orange-600/70"
+                                        )}>Estimated Value</p>
+                                        
+                                        <p className={clsx(
+                                            "text-2xl font-black font-mono",
+                                            isInsufficientFunds ? "text-rose-600" : "text-orange-600"
+                                        )}>
+                                            {estimatedTotal > 0 ? `₹${estimatedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'MARKET PRICE'}
                                         </p>
+                                        
+                                        {/* Warning Message if funds are too low */}
+                                        {isInsufficientFunds && (
+                                            <div className="flex items-center gap-1 text-xs font-bold text-rose-600 mt-2">
+                                                <AlertCircle size={14} />
+                                                Insufficient Wallet Balance
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-[10px] font-black text-orange-600/70 uppercase tracking-widest">Taxes & Charges</p>
-                                        <p className="font-bold text-orange-600">₹0.00</p>
+                                        <p className={clsx(
+                                            "text-[10px] font-black uppercase tracking-widest",
+                                            isInsufficientFunds ? "text-rose-600/70" : "text-orange-600/70"
+                                        )}>Taxes & Charges</p>
+                                        <p className={clsx("font-bold", isInsufficientFunds ? "text-rose-600" : "text-orange-600")}>₹0.00</p>
                                     </div>
                                 </div>
 
                                 {/* Submit Button */}
                                 <button 
-                                    disabled={loading}
+                                    disabled={loading || isInsufficientFunds}
                                     className={clsx(
-                                        "w-full py-5 rounded-[28px] font-black text-xl text-white shadow-xl transform transition-all hover:-translate-y-1 active:translate-y-0 disabled:opacity-70 flex items-center justify-center gap-3",
-                                        side === 'BUY' ? "bg-emerald-600 shadow-emerald-600/20 hover:bg-emerald-500" : "bg-rose-600 shadow-rose-600/20 hover:bg-rose-500"
+                                        "w-full py-5 rounded-[28px] font-black text-xl text-white shadow-xl transform transition-all flex items-center justify-center gap-3",
+                                        isInsufficientFunds 
+                                            ? "bg-slate-300 shadow-none cursor-not-allowed text-slate-500"
+                                            : side === 'BUY' 
+                                                ? "bg-emerald-600 shadow-emerald-600/20 hover:bg-emerald-500 hover:-translate-y-1 active:translate-y-0" 
+                                                : "bg-rose-600 shadow-rose-600/20 hover:bg-rose-500 hover:-translate-y-1 active:translate-y-0"
                                     )}
                                 >
                                     {loading ? <RefreshCw className="animate-spin" size={24} /> : (
                                         <>
-                                            {side} {symbol || 'ASSET'} <ArrowRight strokeWidth={4} size={24} />
+                                            {isInsufficientFunds ? "INSUFFICIENT FUNDS" : `${side} ${symbol || 'ASSET'}`} 
+                                            {!isInsufficientFunds && <ArrowRight strokeWidth={4} size={24} />}
                                         </>
                                     )}
                                 </button>

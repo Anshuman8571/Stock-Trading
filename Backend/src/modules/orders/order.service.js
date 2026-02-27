@@ -23,6 +23,7 @@ async function executeOrder(orderId) {
 
     let client = null;
     let order = null;
+    let failureReason = null;
     try {
         client = await db.getClient();
         await client.query("BEGIN");
@@ -85,28 +86,29 @@ async function executeOrder(orderId) {
 
     } catch (error) {
         console.log("The order get Failed.", orderId)
+        failureReason = error.message;
         if(client){
             console.log("Getting Rollback")
-            failureReason = error.message;
             await client.query("ROLLBACK")
-            await client.query(`UPDATE orders SET status = 'FAILED', failure_reason = $1, updated_at = NOW() WHERE id = $2 AND status IN ('PROCESSING')`, [ error.message, orderId ] )
-        }
-        if(order){
-            await db.query(`UPDATE orders SET status = 'FAILED', failure_reason = $1, updated_at = NOW() WHERE id = $2`, [ failureReason, orderId ])
-            await createNotification(order.user_id,"Order Failed",`Your order for ${ order.symbol } failed. Reason: ${ error.message }`)
         }
         if(!order) {
             const res = await db.query("SELECT * FROM orders WHERE id = $1", [ orderId ])
             order = res.rows[0] ?? null;
         }
-        await publishOrderEvent({
-            orderId,
-            userId: order.user_id,
-            side: order.side,
-            orderType: order.order_type,
-            status: "FAILED",
-            reason: error.message
-        })
+        await db.query(`UPDATE orders SET status = 'FAILED', failure_reason = $1, updated_at = NOW() WHERE id = $2 AND status IN ('PROCESSING')`, [ error.message, orderId ] )
+        if(order){
+            await db.query(`UPDATE orders SET status = 'FAILED', failure_reason = $1, updated_at = NOW() WHERE id = $2`, [ failureReason, orderId ])
+            await createNotification(order.user_id,"Order Failed",`Your order for ${ order.symbol } failed. Reason: ${ error.message }`)
+            await publishOrderEvent({
+                orderId,
+                userId: order.user_id,
+                side: order.side,
+                orderType: order.order_type,
+                status: "FAILED",
+                reason: failureReason
+            })
+        }
+        
         throw error;
     } finally {
         if(client) client.release();
