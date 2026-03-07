@@ -1,5 +1,5 @@
-const { 
-    registerUser, 
+const {
+    registerUser,
     loginUser,
     setupPIN,
     quickLoginWithPIN,
@@ -13,17 +13,17 @@ const {
 async function register(req, res, next) {
     try {
         const { email, password, username, phone, fullName } = req.body;
-        if(!email || !password || !username) {
+        if (!email || !password || !username) {
             const err = new Error("Email, Password and Username are required")
             err.status = 400
             throw err;
         }
-        const user = await registerUser({email, password, username, phone, full_name: fullName});
+        const user = await registerUser({ email, password, username, phone, full_name: fullName });
         res.status(201).json({
             success: true,
             message: "Registration successful",
             user
-        })  
+        })
     } catch (error) {
         next(error)
     }
@@ -35,14 +35,15 @@ async function register(req, res, next) {
 async function login(req, res, next) {
     try {
         const { email, password } = req.body;
-        if(!email || !password) {
+        if (!email || !password) {
             const err = new Error("Email and Password are required")
             err.status = 400
             throw err;
-        }    
+        }
         const result = await loginUser(email, password)
         res.json({
             success: true,
+            message: "Login successful.",
             ...result
         })
     } catch (error) {
@@ -56,7 +57,7 @@ async function login(req, res, next) {
 async function checkPIN(req, res, next) {
     try {
         const { email } = req.query;
-        
+
         if (!email) {
             const err = new Error("Email is required");
             err.status = 400;
@@ -77,7 +78,7 @@ async function createPIN(req, res, next) {
     try {
         const { pin } = req.body;
         const userId = req.user.userId;
-        
+
         if (!pin) {
             const err = new Error("PIN is required");
             err.status = 400;
@@ -97,7 +98,7 @@ async function createPIN(req, res, next) {
 async function pinLogin(req, res, next) {
     try {
         const { email, pin } = req.body;
-        
+
         if (!email || !pin) {
             const err = new Error("Email and PIN are required");
             err.status = 400;
@@ -105,7 +106,7 @@ async function pinLogin(req, res, next) {
         }
 
         const result = await quickLoginWithPIN(email, pin);
-        
+
         res.json({
             success: true,
             message: "Quick login successful",
@@ -129,8 +130,8 @@ async function removePIN(req, res, next) {
     }
 }
 
-module.exports = { 
-    register, 
+module.exports = {
+    register,
     login,
     checkPIN,
     createPIN,

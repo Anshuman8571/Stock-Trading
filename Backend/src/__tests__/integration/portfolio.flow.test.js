@@ -1,17 +1,36 @@
 const request = require('supertest');
 const app = require('../../app');
-const { query } = require('../../config/db');
-const jwt = require('jsonwebtoken');
-
-// Mock Database
-jest.mock('../../config/db', () => ({ query: jest.fn() }));
+const db = require('../../config/db');
 
 describe('Portfolio Flow Integration Tests', () => {
 
-    const validToken = jwt.sign({ userId: 1, email: 'user@test.com' }, process.env.JWT_SECRET || 'testsecret', { expiresIn: '1h' });
+    let validToken;
+    let userId;
 
-    beforeEach(() => {
-        jest.clearAllMocks();
+    beforeAll(async () => {
+        const testEmail = `port_test_${Date.now()}@test.com`;
+
+        // 1. Register a real user
+        await request(app).post('/api/auth/register').send({
+            username: `port_tester_${Date.now()}`,
+            email: testEmail,
+            password: 'password123',
+            fullName: 'Portfolio Tester',
+            phone: `333${Date.now().toString().slice(-7)}`
+        });
+
+        // 2. Login
+        const loginRes = await request(app).post('/api/auth/login').send({
+            email: testEmail,
+            password: 'password123'
+        });
+
+        validToken = loginRes.body.accessToken;
+        userId = loginRes.body.user.id;
+    });
+
+    afterAll(async () => {
+        if (db.close) await db.close();
     });
 
     describe('GET /api/portfolio/analytics', () => {
@@ -21,9 +40,6 @@ describe('Portfolio Flow Integration Tests', () => {
         });
 
         it('should return portfolio breakdown and analytics successfully', async () => {
-            // Mock empty portfolio logic for simplicity in integration test
-            query.mockResolvedValueOnce({ rows: [] });
-
             const res = await request(app)
                 .get('/api/portfolio/analytics')
                 .set('Authorization', `Bearer ${validToken}`);
@@ -36,27 +52,16 @@ describe('Portfolio Flow Integration Tests', () => {
         });
     });
 
-    describe('GET /api/portfolio/history', () => {
-        it('should fetch portfolio tracking history', async () => {
-            query.mockResolvedValueOnce({
-                rows: [{
-                    id: 1,
-                    user_id: 1,
-                    total_value: "15000.50",
-                    invested_amount: "10000.00",
-                    recorded_at: new Date()
-                }]
-            });
-
+    describe('GET /api/portfolio/', () => {
+        it('should fetch portfolio holdings correctly', async () => {
             const res = await request(app)
-                .get('/api/portfolio/history')
-                .set('Authorization', `Bearer ${validToken}`)
-                .query({ tf: '1M' });
+                .get('/api/portfolio/')
+                .set('Authorization', `Bearer ${validToken}`);
 
             expect(res.status).toBe(200);
             expect(res.body.success).toBe(true);
-            expect(res.body.history.length).toBe(1);
-            expect(res.body.history[0].total_value).toBe("15000.50");
+            expect(res.body.holdings).toBeDefined();
+            expect(Array.isArray(res.body.holdings)).toBe(true);
         });
     });
 });

@@ -1,18 +1,42 @@
 const request = require('supertest');
 const app = require('../../app');
-const { query } = require('../../config/db');
-const jwt = require('jsonwebtoken');
-const { getOmniAgentResponse } = require('../../ai/services/ai.service');
+const db = require('../../config/db');
+const { handleMarketAgentChat } = require('../../ai/agents/market.agent');
 
-// Mock dependencies
-jest.mock('../../config/db', () => ({ query: jest.fn() }));
-jest.mock('../../ai/services/ai.service', () => ({
-    getOmniAgentResponse: jest.fn()
+jest.mock('../../ai/agents/market.agent', () => ({
+    handleMarketAgentChat: jest.fn()
 }));
 
 describe('AI Flow Integration Tests', () => {
 
-    const validToken = jwt.sign({ userId: 1, email: 'user@test.com' }, process.env.JWT_SECRET || 'testsecret', { expiresIn: '1h' });
+    let validToken;
+    let userId;
+
+    beforeAll(async () => {
+        const testEmail = `ai_test_${Date.now()}@test.com`;
+
+        // 1. Register a real user
+        await request(app).post('/api/auth/register').send({
+            username: `ai_tester_${Date.now()}`,
+            email: testEmail,
+            password: 'password123',
+            fullName: 'AI Tester',
+            phone: `555${Date.now().toString().slice(-7)}`
+        });
+
+        // 2. Login
+        const loginRes = await request(app).post('/api/auth/login').send({
+            email: testEmail,
+            password: 'password123'
+        });
+
+        validToken = loginRes.body.accessToken;
+        userId = loginRes.body.user.id;
+    });
+
+    afterAll(async () => {
+        if (db.close) await db.close();
+    });
 
     beforeEach(() => {
         jest.clearAllMocks();
@@ -23,54 +47,54 @@ describe('AI Flow Integration Tests', () => {
         it('should return 401 if token is missing', async () => {
             const res = await request(app)
                 .post('/api/ai/agent-chat')
-                .send({ message: 'Hello AI' });
+                .send({ query: 'Hello AI' });
 
             expect(res.status).toBe(401);
-            expect(res.body.error).toBe('No authentication token provided');
+            expect(res.body.error).toBe('Authorization Token Missing');
         });
 
         it('should pass message to OmniAgent and return the response', async () => {
             // Mock AI Service Response
-            getOmniAgentResponse.mockResolvedValueOnce({
+            handleMarketAgentChat.mockResolvedValueOnce({
                 success: true,
                 response: 'I am your AI advisor. Your portfolio looks great!',
-                context: { testContext: true }
+                agent_steps: 3
             });
 
             const res = await request(app)
                 .post('/api/ai/agent-chat')
                 .set('Authorization', `Bearer ${validToken}`)
-                .send({ message: 'Hello AI' });
+                .send({ query: 'Hello AI' });
 
             expect(res.status).toBe(200);
             expect(res.body.success).toBe(true);
             expect(res.body.response).toBe('I am your AI advisor. Your portfolio looks great!');
 
-            // Verify our service was called with the decoded userId
-            expect(getOmniAgentResponse).toHaveBeenCalledWith(1, 'Hello AI');
+            // Verify our service was called with the correct userId
+            expect(handleMarketAgentChat).toHaveBeenCalledWith(userId, 'Hello AI');
         });
 
         it('should handle AI service failures gracefully', async () => {
-            getOmniAgentResponse.mockRejectedValueOnce(new Error('LLM Timeout'));
+            handleMarketAgentChat.mockRejectedValueOnce(new Error('LLM Timeout'));
 
             const res = await request(app)
                 .post('/api/ai/agent-chat')
                 .set('Authorization', `Bearer ${validToken}`)
-                .send({ message: 'Analyze this complex thing.' });
+                .send({ query: 'Analyze this complex thing.' });
 
             expect(res.status).toBe(500);
             expect(res.body.success).toBe(false);
-            expect(res.body.error).toBe('LLM Timeout');
+            expect(res.body.error).toBe('Failed to process agent request.');
         });
 
         it('should return 400 if message is empty', async () => {
             const res = await request(app)
                 .post('/api/ai/agent-chat')
                 .set('Authorization', `Bearer ${validToken}`)
-                .send({ message: '' });
+                .send({ query: '' });
 
             expect(res.status).toBe(400);
-            expect(res.body.error).toBe('Message is required.');
+            expect(res.body.error).toBe('query is required');
         });
     });
 });

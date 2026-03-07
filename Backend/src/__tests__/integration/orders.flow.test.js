@@ -8,33 +8,39 @@ const { getPriceSnapshot } = require("../../modules/market/market.snapshot.servi
 const { connectRedis, redis } = require("../../config/redis"); // Adjusted path
 const db = require("../../config/db")
 describe("Market BUY Order Integration Flow", () => {
-    let token; 
+    let token;
     let userId;
+    let testEmail = `int_test_${Date.now()}@gmail.com`;
+
     beforeAll(async () => {
         // Ensure Redis is connected before tests start
         await connectRedis();
 
         // Register a user for testing
-        await request(app)
+        const regRes = await request(app)
             .post("/api/auth/register")
             .send({
-                email: "integration_test@gmail.com",
-                password: "Password123",
-                username: "int_user",
-                phone: "9876543210", 
+                email: testEmail,
+                password: 'password123',
+                username: `int_user_${Date.now()}`,
+                phone: `777${Date.now().toString().slice(-7)}`,
                 fullName: "Integration User"
             });
-        
+
+        console.log("REGISTRATION RESPONSE: ", regRes.body);
+
         const res = await request(app)
             .post("/api/auth/login")
             .send({
-                email: "integration_test@gmail.com",
-                password: "Password123"
+                email: testEmail,
+                password: 'password123'
             });
-        
-        token = res.body.accessToken; 
+
+        console.log("LOGIN RESPONSE: ", res.body);
+
+        token = res.body.accessToken;
         userId = res.body.user.id;
-        await db.query("UPDATE users SET wallet_balance = 1000000 WHERE id = $1",[ userId ])
+        await db.query("UPDATE users SET wallet_balance = 1000000 WHERE id = $1", [userId])
         expect(token).toBeDefined();
     });
 
@@ -46,7 +52,7 @@ describe("Market BUY Order Integration Flow", () => {
 
     it("should create and execute a MARKET BUY order", async () => {
         // Mock a specific price for this test case
-        getPriceSnapshot.mockResolvedValue({ 
+        getPriceSnapshot.mockResolvedValue({
             price: 2500,
             source: "CACHE",
             ageMS: 1000
@@ -72,9 +78,9 @@ describe("Market BUY Order Integration Flow", () => {
         const historyRes = await request(app)
             .get("/api/orders/history")
             .set("Authorization", `Bearer ${token}`);
-        
+
         const order = historyRes.body.orders.find(o => o.id === buyRes.body.orderId);
-        
+
         expect(order).toBeDefined();
         expect(order.status).toBe("EXECUTED");
         expect(Number(order.price)).toBe(2500);
@@ -84,7 +90,7 @@ describe("Market BUY Order Integration Flow", () => {
         const res = await request(app)
             .get("/api/portfolio")
             .set("Authorization", `Bearer ${token}`);
-        
+
         const holding = res.body.holdings.find(h => h.symbol === "RELIANCE");
         expect(holding).toBeDefined();
         expect(Number(holding.quantity)).toBeGreaterThan(0);
@@ -116,7 +122,7 @@ describe("Market BUY Order Integration Flow", () => {
         const historyRes = await request(app)
             .get("/api/orders/history")
             .set("Authorization", `Bearer ${token}`);
-        
+
         const order = historyRes.body.orders.find(o => o.id === orderId);
 
         expect(order.status).toBe("PENDING"); // Should remain pending
@@ -145,11 +151,11 @@ describe("Market BUY Order Integration Flow", () => {
 
         const orderId = res.body.orderId;
         await executeOrder(orderId);
-        
+
         const historyRes = await request(app)
             .get("/api/orders/history")
             .set("Authorization", `Bearer ${token}`);
-        
+
         const order = historyRes.body.orders.find(o => o.id === orderId);
 
         expect(order.status).toBe("EXECUTED");

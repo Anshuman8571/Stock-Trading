@@ -11,12 +11,13 @@ jest.mock("../../modules/market/market.snapshot.service", () => ({
 describe("Wallet & Trading Integration Flow", () => {
     let token;
     let userId;
+    const testEmail = `wallet_test_${Date.now()}@gmail.com`;
     const testUser = {
-        email: "wallet_test@gmail.com",
+        email: testEmail,
         password: "Password123",
-        username: "walletuser",
-        phone: "9998887776",
-        fullName: "Wallet Tester"
+        username: `walletuser_${Date.now()}`,
+        fullName: "Wallet Tester",
+        phone: `888${Date.now().toString().slice(-7)}`
     };
 
     beforeAll(async () => {
@@ -24,13 +25,13 @@ describe("Wallet & Trading Integration Flow", () => {
 
         // 1. Register User
         await request(app).post("/api/auth/register").send(testUser);
-        
+
         // 2. Login
         const loginRes = await request(app).post("/api/auth/login").send({
             email: testUser.email,
             password: testUser.password
         });
-        
+
         token = loginRes.body.accessToken;
         userId = loginRes.body.user.id;
         expect(token).toBeDefined();
@@ -44,7 +45,7 @@ describe("Wallet & Trading Integration Flow", () => {
         const res = await request(app)
             .get("/api/wallet/balance")
             .set("Authorization", `Bearer ${token}`);
-        
+
         expect(res.body.balance).toBe(0);
     });
 
@@ -62,7 +63,7 @@ describe("Wallet & Trading Integration Flow", () => {
         // 2. FETCH OTP FROM REDIS (Simulating User receiving SMS)
         const redisKey = `deposit_otp:${userId}`;
         const redisData = await redis.get(redisKey);
-        
+
         expect(redisData).not.toBeNull();
         const { otp } = JSON.parse(redisData);
 
@@ -81,7 +82,7 @@ describe("Wallet & Trading Integration Flow", () => {
         // Current Balance: 10,000 (from previous test)
         // Stock Price: 15,000
         // Attempting to buy 1 -> Should Fail
-        
+
         getPriceSnapshot.mockResolvedValue({ price: 15000, source: "CACHE", ageMS: 0 });
 
         const buyRes = await request(app)
@@ -102,12 +103,12 @@ describe("Wallet & Trading Integration Flow", () => {
             // ✅ FIX: Use case-insensitive regex (/i) to match "Wallet Balance"
             expect(error.message).toMatch(/Insufficient wallet balance/i);
         }
-        
+
         // Verify Order Status in DB is FAILED
         const historyRes = await request(app)
             .get("/api/orders/history")
             .set("Authorization", `Bearer ${token}`);
-        
+
         const order = historyRes.body.orders.find(o => o.id === orderId);
         expect(order.status).toBe("FAILED");
         expect(order.failure_reason).toMatch(/Insufficient wallet balance/i);

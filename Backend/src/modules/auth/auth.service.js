@@ -8,18 +8,22 @@ const SALT_ROUNDS = parseInt(process.env.BCRYPT_SALT_ROUND || "10", 10)
 // ============================================
 // TRADITIONAL EMAIL/PASSWORD REGISTRATION
 // ============================================
-async function registerUser({email, password, username, phone, full_name}) {
-    const exist = await db.query(`SELECT id FROM users WHERE email = $1`,[ email ])
-    if(exist.rows.length > 0) throw new Error("User already exists.")
+async function registerUser({ email, password, username, phone, full_name }) {
+    const exist = await db.query(`SELECT id FROM users WHERE email = $1`, [email])
+    if (exist.rows.length > 0) {
+        const error = new Error("User already exist with this username or email");
+        error.status = 400;
+        throw error;
+    }
     const hashPassword = await bcrypt.hash(password, SALT_ROUNDS);
-    
+
     const userId = uuidv4()
     await db.query(
         `INSERT INTO users (id, email, password, username, phone, full_name) 
-         VALUES ($1, $2, $3, $4, $5, $6)`, 
+         VALUES ($1, $2, $3, $4, $5, $6)`,
         [userId, email, hashPassword, username, phone, full_name]
     );
-    
+
     return { userId, email, username };
 }
 
@@ -27,26 +31,34 @@ async function registerUser({email, password, username, phone, full_name}) {
 // TRADITIONAL EMAIL/PASSWORD LOGIN
 // ============================================
 async function loginUser(email, password) {
-    const result = await db.query(`SELECT * FROM users WHERE email = $1`, [ email ]);
+    const result = await db.query(`SELECT * FROM users WHERE email = $1`, [email]);
     const user = result.rows[0]
-    if(!user) throw new Error("User does not exist. Please register.")
+    if (!user) {
+        const err = new Error("User does not exist. Please register.");
+        err.status = 401;
+        throw err;
+    }
 
     const isMatch = await bcrypt.compare(password, user.password)
-    if(!isMatch) throw new Error("Invalid credentials")
+    if (!isMatch) {
+        const err = new Error("Invalid credentials.");
+        err.status = 401;
+        throw err;
+    }
 
     const accessToken = generateAccessToken({ userId: user.id })
     const refreshToken = generateRefreshToken({ userId: user.id })
-    await db.query(`INSERT INTO refresh_tokens (id, user_id, token) VALUES ($1, $2, $3)`,[ uuidv4(), user.id, refreshToken ])
+    await db.query(`INSERT INTO refresh_tokens (id, user_id, token) VALUES ($1, $2, $3)`, [uuidv4(), user.id, refreshToken])
 
-    return { 
+    return {
         user: {
             id: user.id,
             email: user.email,
             username: user.username,
             pin_enabled: user.pin_enabled || false
         },
-        accessToken, 
-        refreshToken 
+        accessToken,
+        refreshToken
     }
 }
 
@@ -69,9 +81,9 @@ async function setupPIN(userId, pin) {
             [hashedPIN, userId]
         );
 
-        return { 
-            success: true, 
-            message: "PIN setup successful. You can now use PIN for quick login." 
+        return {
+            success: true,
+            message: "PIN setup successful. You can now use PIN for quick login."
         };
     } catch (error) {
         console.error("Setup PIN Error:", error);
@@ -104,21 +116,21 @@ async function quickLoginWithPIN(email, pin) {
         // Generate tokens
         const accessToken = generateAccessToken({ userId: user.id });
         const refreshToken = generateRefreshToken({ userId: user.id });
-        
+
         await db.query(
             `INSERT INTO refresh_tokens (id, user_id, token) VALUES ($1, $2, $3)`,
             [uuidv4(), user.id, refreshToken]
         );
 
-        return { 
+        return {
             user: {
                 id: user.id,
                 email: user.email,
                 username: user.username,
                 pin_enabled: true
             },
-            accessToken, 
-            refreshToken 
+            accessToken,
+            refreshToken
         };
     } catch (error) {
         console.error("PIN Login Error:", error);
@@ -145,19 +157,19 @@ async function checkPINStatus(email) {
         `SELECT pin_enabled FROM users WHERE email = $1`,
         [email]
     );
-    
+
     if (result.rows.length === 0) {
         return { exists: false, pin_enabled: false };
     }
-    
-    return { 
-        exists: true, 
-        pin_enabled: result.rows[0].pin_enabled || false 
+
+    return {
+        exists: true,
+        pin_enabled: result.rows[0].pin_enabled || false
     };
 }
 
-module.exports = { 
-    registerUser, 
+module.exports = {
+    registerUser,
     loginUser,
     setupPIN,
     quickLoginWithPIN,

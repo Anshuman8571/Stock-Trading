@@ -1,59 +1,70 @@
 const request = require('supertest');
 const app = require('../../app');
-const { query } = require('../../config/db');
-const jwt = require('jsonwebtoken');
-
-// Mock Database
-jest.mock('../../config/db', () => ({ query: jest.fn() }));
+const db = require('../../config/db');
 
 describe('User Flow Integration Tests', () => {
 
-    const validToken = jwt.sign({ userId: 1, email: 'user@test.com' }, process.env.JWT_SECRET || 'testsecret', { expiresIn: '1h' });
+    let validToken;
+    let userId;
 
-    beforeEach(() => {
-        jest.clearAllMocks();
+    beforeAll(async () => {
+        const testEmail = `user_test_${Date.now()}@test.com`;
+
+        // 1. Register a real user
+        await request(app).post('/api/auth/register').send({
+            username: `tester_${Date.now()}`,
+            email: testEmail,
+            password: 'password123',
+            fullName: 'Test O',
+            phone: `222${Date.now().toString().slice(-7)}`
+        });
+
+        // 2. Login to get valid token
+        const loginRes = await request(app).post('/api/auth/login').send({
+            email: testEmail,
+            password: 'password123'
+        });
+
+        validToken = loginRes.body.accessToken;
+        userId = loginRes.body.user.id;
     });
 
-    describe('GET /api/user/profile', () => {
-        it('should return user profile if token is valid', async () => {
-            query.mockResolvedValueOnce({
-                rows: [{ id: 1, username: 'tester', email: 'user@test.com', full_name: 'Test O', role: 'user', created_at: new Date() }]
-            });
+    afterAll(async () => {
+        if (db.close) await db.close();
+    });
 
+    describe('GET /api/user/me', () => {
+        it('should return user profile if token is valid', async () => {
             const res = await request(app)
-                .get('/api/user/profile')
+                .get('/api/user/me')
                 .set('Authorization', `Bearer ${validToken}`);
 
             expect(res.status).toBe(200);
             expect(res.body.user).toBeDefined();
-            expect(res.body.user.username).toBe('tester');
+            expect(res.body.user.username).toBeDefined();
         });
 
         it('should return 401 if no token is provided', async () => {
-            const res = await request(app).get('/api/user/profile');
+            const res = await request(app).get('/api/user/me');
             expect(res.status).toBe(401);
-            expect(res.body.error).toBe('No authentication token provided');
+            expect(res.body.error).toBe('Authorization Token Missing');
         });
     });
 
-    describe('PUT /api/user/profile', () => {
+    describe('POST /api/user/update-user', () => {
         it('should update user profile successfully', async () => {
-            // Mock returning the existing/updated user
-            query.mockResolvedValueOnce({
-                rows: [{ id: 1, full_name: 'Updated Name', phone: '9999999999' }]
-            });
-
+            const updatedUsername = `updated_${Date.now()}`;
             const res = await request(app)
-                .put('/api/user/profile')
+                .post('/api/user/update-user')
                 .set('Authorization', `Bearer ${validToken}`)
                 .send({
-                    fullName: 'Updated Name',
-                    phone: '9999999999'
+                    username: updatedUsername,
+                    email: `updated_${Date.now()}@test.com`
                 });
 
             expect(res.status).toBe(200);
-            expect(res.body.message).toBe('Profile updated successfully');
-            expect(res.body.user.full_name).toBe('Updated Name');
+            expect(res.body.success).toBe(true);
+            expect(res.body.user.username).toBe(updatedUsername);
         });
     });
 });
