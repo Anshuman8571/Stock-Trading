@@ -1,4 +1,5 @@
 const { handleAIChat, generatePortfolioAnalysis, generateStockRecommendation, clearConversationSession } = require("../services/ai.service");
+const { handleMarketAgentChat, clearAgentSession } = require("../agents/market.agent");
 
 /**
  * POST /api/ai/chat
@@ -8,16 +9,16 @@ async function chat(req, res, next) {
     try {
         const { message, context } = req.body;
         const userId = req.user.userId;
-        
+
         if (!message || typeof message !== 'string' || message.trim().length === 0) {
             return res.status(400).json({
                 success: false,
                 error: "Message is required"
             });
         }
-        
+
         const result = await handleAIChat(userId, message.trim(), context);
-        
+
         res.json(result);
     } catch (error) {
         next(error);
@@ -31,9 +32,9 @@ async function chat(req, res, next) {
 async function analyzePortfolio(req, res, next) {
     try {
         const userId = req.user.userId;
-        
+
         const result = await generatePortfolioAnalysis(userId);
-        
+
         res.json(result);
     } catch (error) {
         next(error);
@@ -48,20 +49,20 @@ async function recommendStock(req, res, next) {
     try {
         const { symbol, question } = req.body;
         const userId = req.user.userId;
-        
+
         if (!symbol || typeof symbol !== 'string') {
             return res.status(400).json({
                 success: false,
                 error: "Stock symbol is required"
             });
         }
-        
+
         const result = await generateStockRecommendation(
-            userId, 
+            userId,
             symbol.trim().toUpperCase(),
             question || "Should I buy this stock?"
         );
-        
+
         res.json(result);
     } catch (error) {
         next(error);
@@ -75,13 +76,52 @@ async function recommendStock(req, res, next) {
 async function clearSession(req, res, next) {
     try {
         const userId = req.user.userId;
-        
+
         clearConversationSession(userId);
-        
+
         res.json({
             success: true,
             message: "Conversation session cleared"
         });
+    } catch (error) {
+        next(error);
+    }
+}
+
+/**
+ * POST /api/ai/agent-chat
+ * Interact with the autonomous Market Research Agent
+ */
+async function agentChat(req, res, next) {
+    try {
+        const { query } = req.body;
+        const userId = req.user ? req.user.userId : 'anonymous'; // Fallback if auth isn't strictly enforced
+
+        if (!query || typeof query !== 'string' || query.trim().length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: "query is required"
+            });
+        }
+
+        const result = await handleMarketAgentChat(userId, query.trim());
+
+        res.json(result);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, error: "Failed to process agent request." });
+    }
+}
+
+/**
+ * POST /api/ai/clear-agent
+ * Clear the Agent session and Vector DB
+ */
+async function clearAgent(req, res, next) {
+    try {
+        const userId = req.user ? req.user.userId : 'anonymous';
+        clearAgentSession(userId);
+        res.json({ success: true, message: "Agent session and vector storage cleared." });
     } catch (error) {
         next(error);
     }
@@ -94,17 +134,18 @@ async function clearSession(req, res, next) {
 async function healthCheck(req, res, next) {
     try {
         const geminiApiKey = process.env.GEMINI_API_KEY; // ✅ FIXED: Was "geminiapiKey"
-        console.log("GeminiAPI Key",geminiApiKey)
+        console.log("GeminiAPI Key", geminiApiKey)
         res.json({
             success: true,
             status: "AI service is running",
             gemini_configured: !!geminiApiKey, // ✅ FIXED: Was "openai_configured"
-            model: "gemini-1.5-flash",
+            model: "gemini-2.5-flash",
             features: [
                 "AI Chat",
                 "Portfolio Analysis",
                 "Stock Recommendations",
-                "Conversation Memory"
+                "Conversation Memory",
+                "Agentic Market Research (RAG)"
             ]
         });
     } catch (error) {
@@ -118,4 +159,6 @@ module.exports = {
     recommendStock,
     clearSession,
     healthCheck,
+    agentChat,
+    clearAgent
 };

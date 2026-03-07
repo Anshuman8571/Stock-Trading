@@ -5,34 +5,22 @@ import { TrendingUp, Wallet, PieChart, ArrowUpRight, ArrowDownRight, Zap } from 
 import Button from '../components/ui/Button';
 import PriceDisplay from '../components/trading/PriceDisplay';
 import { usePortfolioStore } from '../store/usePortfolioStore';
-import { getWalletBalance } from '../services/walletService'; // ✅ Import Wallet Service
+import { motion } from 'framer-motion';
 
 export default function Dashboard() {
     const { user } = useAuth();
-    const { analytics, loading, fetchAnalytics } = usePortfolioStore();
-    const [walletBalance, setWalletBalance] = useState(0); // ✅ State for Wallet Balance
+    const { analytics, walletBalance, loading, fetchAnalytics } = usePortfolioStore();
 
     useEffect(() => {
-        fetchAnalytics(); 
-        fetchWalletData(); // ✅ Fetch Wallet Balance on mount
+        fetchAnalytics();
     }, []);
-
-    // ✅ Fetch function
-    const fetchWalletData = async () => {
-        try {
-            const balance = await getWalletBalance();
-            setWalletBalance(Number(balance));
-        } catch (error) {
-            console.error("Failed to fetch wallet balance", error);
-        }
-    };
 
     if (loading) {
         return (
             <div className="flex h-screen items-center justify-center bg-slate-50">
-                <div className="flex flex-col items-center gap-3">
-                    <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
-                    <p className="text-slate-500 font-medium text-sm animate-pulse">Syncing Portfolio...</p>
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-slate-500 font-bold text-sm tracking-widest uppercase animate-pulse">Syncing Portfolio...</p>
                 </div>
             </div>
         );
@@ -44,161 +32,206 @@ export default function Dashboard() {
     const pnlPercent = invested > 0 ? (pnl / invested) * 100 : 0;
     const isProfit = pnl >= 0;
 
+    // Animation Variants
+    const containerVariants = {
+        hidden: { opacity: 0 },
+        show: {
+            opacity: 1,
+            transition: { staggerChildren: 0.1 }
+        }
+    };
+
+    const itemVariants = {
+        hidden: { opacity: 0, y: 20 },
+        show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+    };
+
     return (
-        <div className="min-h-screen bg-slate-50/50 pb-12 font-sans text-slate-900 selection:bg-orange-100 selection:text-orange-600">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-8 animate-fade-in">
-                
+        <div className="relative min-h-screen bg-slate-50 pb-12 font-sans text-slate-900 overflow-hidden selection:bg-orange-100 selection:text-orange-600">
+
+            {/* AMBIENT BACKGROUND BLOBS */}
+            <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-orange-300/20 rounded-full blur-[120px] pointer-events-none" />
+            <div className="absolute top-[40%] left-[-10%] w-[500px] h-[500px] bg-rose-300/20 rounded-full blur-[100px] pointer-events-none" />
+
+            <motion.div
+                className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-8"
+                variants={containerVariants}
+                initial="hidden"
+                animate="show"
+            >
                 {/* Header Area */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <motion.div variants={itemVariants} className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/60 backdrop-blur-xl p-6 rounded-3xl border border-white shadow-sm">
                     <div>
-                        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Dashboard</h1>
-                        <p className="text-slate-500 mt-1 font-medium">Welcome back, {user?.username}</p>
+                        <h1 className="text-3xl font-black tracking-tight text-slate-900">Dashboard</h1>
+                        <p className="text-slate-500 mt-1 font-bold text-sm flex items-center gap-2">
+                            Welcome back, <span className="text-orange-600">{user?.username}</span>
+                        </p>
                     </div>
                     <div className="flex gap-3">
                         <Link to="/ai-advisor">
-                            <Button variant="secondary" className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm">
-                                <Zap size={18} className="text-orange-500" /> 
-                                <span className="ml-2">AI Insights</span>
-                            </Button>
+                            <button className="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 hover:text-orange-600 hover:border-orange-300 px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm active:scale-95">
+                                <Zap size={18} className="text-orange-500" />
+                                AI Insights
+                            </button>
                         </Link>
                         <Link to="/trade">
-                            <Button className="bg-orange-600 hover:bg-orange-700 text-white shadow-lg shadow-orange-500/20 border-0">
-                                <Wallet size={18} /> 
-                                <span className="ml-2">Invest Money</span>
-                            </Button>
+                            <button className="flex items-center gap-2 bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-md shadow-orange-500/20 transition-all active:scale-95 border-0">
+                                <Wallet size={18} />
+                                Invest Money
+                            </button>
                         </Link>
                     </div>
-                </div>
+                </motion.div>
 
                 {/* Hero Stats Section */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    
+
                     {/* Main Portfolio Card */}
-                    <div className="lg:col-span-2 relative overflow-hidden rounded-3xl bg-gradient-to-br from-orange-500 to-red-600 p-8 text-white shadow-xl shadow-orange-500/15">
-                        <div className="relative z-10 flex flex-col justify-between h-full min-h-[180px]">
+                    <motion.div variants={itemVariants} className="lg:col-span-2 relative overflow-hidden rounded-[32px] bg-gradient-to-br from-slate-900 to-slate-800 p-8 text-white shadow-xl shadow-slate-900/20 border border-slate-700/50">
+                        <div className="relative z-10 flex flex-col justify-between h-full min-h-[220px]">
                             <div>
-                                <p className="text-orange-100 font-medium mb-1 text-sm uppercase tracking-wider">Total Portfolio Value</p>
-                                <h2 className="text-5xl font-bold tracking-tight">
-                                    <PriceDisplay value={currentValue} showCurrency={true} className="text-white" />
+                                <div className="flex items-center gap-2 mb-2">
+                                    <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-md">
+                                        <TrendingUp size={16} className="text-orange-400" />
+                                    </div>
+                                    <p className="text-slate-300 font-bold text-xs uppercase tracking-widest">Total Portfolio Value</p>
+                                </div>
+                                <h2 className="text-6xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-orange-400 to-orange-500">
+                                    <PriceDisplay value={currentValue} showCurrency={true} className="!text-transparent" />
                                 </h2>
                             </div>
-                            
-                            <div className="flex items-center gap-6 mt-6">
-                                <div className="bg-white/10 backdrop-blur-md border border-white/10 rounded-2xl px-5 py-3">
-                                    <p className="text-[10px] text-orange-100 uppercase tracking-widest font-bold mb-1">Total Returns</p>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-2xl font-bold">
+
+                            <div className="flex items-center gap-6 mt-8">
+                                <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl px-6 py-4">
+                                    <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-1">Total Returns</p>
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-3xl font-bold text-white">
                                             {isProfit ? '+' : ''}₹{Math.abs(pnl).toLocaleString()}
                                         </span>
-                                        <span className={`px-2 py-0.5 rounded-lg text-xs font-bold flex items-center ${isProfit ? 'bg-emerald-400/20 text-emerald-100' : 'bg-white/20 text-white'}`}>
-                                            {isProfit ? <ArrowUpRight size={14} className="mr-1"/> : <ArrowDownRight size={14} className="mr-1"/>}
+                                        <span className={`px-2.5 py-1 rounded-lg text-xs font-black flex items-center ${isProfit ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                                            {isProfit ? <ArrowUpRight size={14} className="mr-1" /> : <ArrowDownRight size={14} className="mr-1" />}
                                             {Math.abs(pnlPercent).toFixed(2)}%
                                         </span>
                                     </div>
                                 </div>
-                                
+
                                 <div className="hidden sm:block">
-                                    <p className="text-[10px] text-orange-100 uppercase tracking-widest font-bold mb-1">Invested Capital</p>
-                                    <p className="text-2xl font-bold opacity-90">₹{invested.toLocaleString()}</p>
+                                    <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-1">Invested Capital</p>
+                                    <p className="text-3xl font-bold text-white opacity-90">₹{invested.toLocaleString()}</p>
                                 </div>
                             </div>
                         </div>
 
                         {/* Background Shapes */}
-                        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
-                        <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-48 h-48 bg-black/10 rounded-full blur-2xl"></div>
-                    </div>
+                        <div className="absolute top-0 right-0 -mt-20 -mr-20 w-80 h-80 bg-orange-500/20 rounded-full blur-[80px] pointer-events-none"></div>
+                        <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-64 h-64 bg-rose-500/10 rounded-full blur-[60px] pointer-events-none"></div>
+                    </motion.div>
 
                     {/* Quick Stats / Summary Card */}
-                    <div className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm flex flex-col justify-center">
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="p-3 bg-blue-50 rounded-2xl text-blue-600">
-                                <PieChart size={24} />
+                    <motion.div variants={itemVariants} className="bg-white/60 backdrop-blur-2xl rounded-[32px] border border-white p-8 shadow-xl shadow-slate-200/50 flex flex-col justify-center">
+                        <div className="flex items-center gap-4 mb-8">
+                            <div className="p-4 bg-orange-100 rounded-2xl text-orange-600 shadow-inner">
+                                <PieChart size={28} />
                             </div>
                             <div>
-                                <h3 className="font-bold text-slate-900">Portfolio Status</h3>
-                                <p className="text-xs text-slate-500">Real-time breakdown</p>
+                                <h3 className="font-black text-slate-900 text-lg">Portfolio Status</h3>
+                                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Real-time breakdown</p>
                             </div>
                         </div>
-                        
+
                         <div className="space-y-4">
-                            <div className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                <span className="text-sm text-slate-600 font-medium">Active Positions</span>
-                                <span className="text-lg font-bold text-slate-900">{analytics?.breakdown?.length || 0}</span>
+                            <div className="flex justify-between items-center p-5 bg-white rounded-2xl border border-slate-100 shadow-sm">
+                                <span className="text-sm text-slate-500 font-bold">Active Positions</span>
+                                <span className="text-xl font-black text-slate-900 bg-slate-100 px-3 py-1 rounded-xl">{analytics?.breakdown?.length || 0}</span>
                             </div>
-                            <div className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                <span className="text-sm text-slate-600 font-medium">Available Cash</span>
-                                {/* ✅ Updated to show real balance */}
-                                <span className="text-lg font-bold text-slate-900">
+                            <div className="flex justify-between items-center p-5 bg-gradient-to-r from-orange-50 to-rose-50 rounded-2xl border border-orange-100/50 shadow-sm">
+                                <span className="text-sm text-orange-800 font-bold">Available Cash</span>
+                                <span className="text-xl font-black text-orange-600">
                                     <PriceDisplay value={walletBalance} showCurrency={true} />
                                 </span>
                             </div>
                         </div>
-                    </div>
+                    </motion.div>
                 </div>
 
                 {/* Holdings Section */}
-                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-                    <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white">
-                        <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                            <TrendingUp size={20} className="text-orange-500" />
+                <motion.div variants={itemVariants} className="bg-white/60 backdrop-blur-2xl rounded-[32px] border border-white shadow-xl shadow-slate-200/50 overflow-hidden">
+                    <div className="p-6 md:p-8 border-b border-slate-100/50 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                        <h3 className="text-xl font-black text-slate-900 flex items-center gap-3">
+                            <div className="p-2 bg-rose-100 text-rose-600 rounded-xl">
+                                <TrendingUp size={20} />
+                            </div>
                             Your Assets
                         </h3>
-                        <Link to="/trade" className="text-sm font-bold text-orange-600 hover:text-orange-700 hover:underline transition-colors">
+                        <Link to="/trade" className="text-sm font-bold text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 px-4 py-2 rounded-xl transition-colors">
                             Manage Portfolio
                         </Link>
                     </div>
-                    
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                            <thead className="bg-slate-50/80">
+
+                    <div className="overflow-x-auto custom-scrollbar">
+                        <table className="w-full text-left border-collapse min-w-[800px]">
+                            <thead className="bg-slate-50/50 border-b border-slate-100">
                                 <tr>
-                                    <th className="py-4 px-6 text-xs font-bold text-slate-400 uppercase tracking-wider">Asset Symbol</th>
-                                    <th className="py-4 px-6 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Quantity</th>
-                                    <th className="py-4 px-6 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Avg. Cost</th>
-                                    <th className="py-4 px-6 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Market Value</th>
-                                    <th className="py-4 px-6 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">P&L Status</th>
+                                    <th className="py-5 px-8 text-xs font-black text-slate-400 uppercase tracking-widest">Asset Symbol</th>
+                                    <th className="py-5 px-8 text-xs font-black text-slate-400 uppercase tracking-widest text-right">Quantity</th>
+                                    <th className="py-5 px-8 text-xs font-black text-slate-400 uppercase tracking-widest text-right">Avg. Cost</th>
+                                    <th className="py-5 px-8 text-xs font-black text-slate-400 uppercase tracking-widest text-right">Market Value</th>
+                                    <th className="py-5 px-8 text-xs font-black text-slate-400 uppercase tracking-widest text-right">P&L Status</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100">
+                            <tbody className="divide-y divide-slate-50">
                                 {analytics?.breakdown?.length > 0 ? (
                                     analytics.breakdown.map((item, index) => {
                                         const itemPnl = Number(item.current_value) - (Number(item.avg_price) * Number(item.quantity));
                                         const isItemProfit = itemPnl >= 0;
-                                        
+
                                         return (
-                                            <tr key={index} className="hover:bg-slate-50/80 transition-colors group">
-                                                <td className="py-5 px-6">
-                                                    <div className="font-bold text-slate-900 group-hover:text-orange-600 transition-colors">{item.symbol}</div>
+                                            <motion.tr
+                                                key={index}
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ delay: index * 0.05 }}
+                                                className="hover:bg-white/80 transition-colors group"
+                                            >
+                                                <td className="py-6 px-8">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-900 font-bold shadow-sm">
+                                                            {item.symbol.charAt(0)}
+                                                        </div>
+                                                        <div className="font-black text-slate-900 group-hover:text-orange-600 transition-colors text-lg">{item.symbol}</div>
+                                                    </div>
                                                 </td>
-                                                <td className="py-5 px-6 text-right font-medium text-slate-600">
+                                                <td className="py-6 px-8 text-right font-bold text-slate-600 text-lg">
                                                     {item.quantity}
                                                 </td>
-                                                <td className="py-5 px-6 text-right font-medium text-slate-600">
+                                                <td className="py-6 px-8 text-right font-bold text-slate-600 text-lg">
                                                     ₹{Number(item.avg_price).toLocaleString()}
                                                 </td>
-                                                <td className="py-5 px-6 text-right">
-                                                    <div className="font-bold text-slate-900">₹{Number(item.current_value).toLocaleString()}</div>
+                                                <td className="py-6 px-8 text-right">
+                                                    <div className="font-black text-slate-900 text-lg">₹{Number(item.current_value).toLocaleString()}</div>
                                                 </td>
-                                                <td className="py-5 px-6 text-right">
-                                                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${isItemProfit ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
-                                                        {isItemProfit ? <ArrowUpRight size={12} className="mr-1" /> : <ArrowDownRight size={12} className="mr-1" />}
+                                                <td className="py-6 px-8 text-right">
+                                                    <span className={`inline-flex items-center px-4 py-1.5 rounded-xl text-sm font-black shadow-sm ${isItemProfit ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}>
+                                                        {isItemProfit ? <ArrowUpRight size={16} className="mr-1" /> : <ArrowDownRight size={16} className="mr-1" />}
                                                         ₹{Math.abs(itemPnl).toLocaleString()}
                                                     </span>
                                                 </td>
-                                            </tr>
+                                            </motion.tr>
                                         );
                                     })
                                 ) : (
                                     <tr>
-                                        <td colSpan="5" className="py-20 text-center">
-                                            <div className="flex flex-col items-center justify-center opacity-60">
-                                                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-400">
-                                                    <Wallet size={32} />
+                                        <td colSpan="5" className="py-32 text-center">
+                                            <div className="flex flex-col items-center justify-center opacity-80">
+                                                <div className="w-24 h-24 bg-orange-50 rounded-full flex items-center justify-center mb-6 text-orange-400 shadow-inner">
+                                                    <Wallet size={40} />
                                                 </div>
-                                                <p className="text-slate-500 font-medium mb-2 text-lg">No assets in portfolio</p>
+                                                <p className="text-slate-900 font-black mb-3 text-2xl tracking-tight">Your portfolio is empty</p>
+                                                <p className="text-slate-500 font-medium mb-6 max-w-sm">Start building your wealth today by making your first investment.</p>
                                                 <Link to="/trade">
-                                                    <button className="text-orange-600 font-bold hover:underline">Place your first trade</button>
+                                                    <button className="bg-slate-900 hover:bg-orange-600 text-white font-bold py-3 px-8 rounded-xl transition-all shadow-md hover:shadow-orange-500/20 active:scale-95">
+                                                        Explore Markets
+                                                    </button>
                                                 </Link>
                                             </div>
                                         </td>
@@ -207,8 +240,8 @@ export default function Dashboard() {
                             </tbody>
                         </table>
                     </div>
-                </div>
-            </div>
+                </motion.div>
+            </motion.div>
         </div>
     );
 }

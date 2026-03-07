@@ -1,17 +1,23 @@
-const { ChatGoogleGenerativeAI } = require("@langchain/google-genai");
+const { ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings } = require("@langchain/google-genai");
 const { ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate } = require("@langchain/core/prompts");
 
 const apiKey = process.env.GEMINI_API_KEY || (process.env.NODE_ENV === 'test' ? "dummy-key-for-test" : undefined);
 
-// Initialize Gemini Model (FIXED)
+// Initialize Gemini Model
 const model = new ChatGoogleGenerativeAI({
     apiKey: apiKey,
-    model: "gemini-2.5-flash", 
+    model: "gemini-2.5-flash-lite",
     temperature: 0.7,
-    maxOutputTokens: 2000, 
+    maxOutputTokens: 2000,
+    maxRetries: 0,
 });
 
-// 2. Define Prompts (Explicit & Clear)
+const embeddingsModel = new GoogleGenerativeAIEmbeddings({
+    apiKey: apiKey,
+    model: "gemini-embedding-001", // User's specific embedding model provisioned by Google
+});
+
+// Define Prompts (Explicit & Clear)
 const financialAdvisorPrompt = ChatPromptTemplate.fromMessages([
     SystemMessagePromptTemplate.fromTemplate(`
 You are an expert AI Financial Advisor for a stock trading platform.
@@ -36,9 +42,9 @@ User Question:
     `)
 ]);
 
-// 3. Manual Chain Implementation
+// Manual Chain Implementation
 function createFinancialAdvisorChain() {
-    let messageHistory = []; 
+    let messageHistory = [];
 
     return {
         invoke: async ({ input, portfolio_summary, market_status }) => {
@@ -46,10 +52,9 @@ function createFinancialAdvisorChain() {
                 return { response: "This is a mock AI response for testing." };
             }
             try {
-                // 1. Format the History for the prompt
+                // Formatting history
                 const historyText = messageHistory.map(m => `${m.role}: ${m.content}`).join("\n");
 
-                // 2. Create the specific prompt for this turn
                 const formattedPrompt = await financialAdvisorPrompt.format({
                     portfolio_summary: portfolio_summary || "No portfolio data",
                     market_status: market_status || "Market Closed",
@@ -57,14 +62,11 @@ function createFinancialAdvisorChain() {
                     input: input
                 });
 
-                // 3. Call the Model
                 const response = await model.invoke(formattedPrompt);
-                
-                // 4. Update History
+
                 messageHistory.push({ role: "User", content: input });
                 messageHistory.push({ role: "AI", content: response.content });
-                
-                // Keep history manageable (last 10 turns = 20 messages)
+
                 if (messageHistory.length > 20) messageHistory = messageHistory.slice(-20);
 
                 return { response: response.content };
@@ -124,6 +126,7 @@ Recommendation:
 
 module.exports = {
     model,
+    embeddingsModel,
     createFinancialAdvisorChain,
     portfolioAnalysisPrompt,
     stockRecommendationPrompt

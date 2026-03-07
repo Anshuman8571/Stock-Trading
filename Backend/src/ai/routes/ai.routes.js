@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const authMiddleware = require("../../middleware/authMiddleware");
-const { chat, analyzePortfolio, recommendStock, clearSession, healthCheck } = require("../controller/ai.controller");
+const { chat, analyzePortfolio, recommendStock, clearSession, healthCheck, agentChat, clearAgent } = require("../controller/ai.controller");
 
 // Health check (public)
 router.get("/health", healthCheck);
@@ -20,5 +20,11 @@ router.post("/recommend-stock", recommendStock);
 
 // Clear conversation session
 router.post("/clear-session", clearSession);
+
+// Agentic Market Research
+router.post("/agent-chat", agentChat);
+
+// Clear Agent Session
+router.post("/clear-agent", clearAgent);
 
 module.exports = router;
