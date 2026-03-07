@@ -48,7 +48,7 @@ jobs:
                 ls -la
 
             - name: Install Backend Dependencies
-              run: npm ci
+              run: npm ci --legacy-peer-deps
 
             - name: Wait for Redis
               run: |
