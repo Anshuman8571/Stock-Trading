@@ -10,7 +10,7 @@ const db = require("../../config/db")
 describe("Market BUY Order Integration Flow", () => {
     let token;
     let userId;
-    let testEmail = `int_test_${Date.now()}@gmail.com`;
+    let testEmail = "orders_tester@gmail.com";
 
     beforeAll(async () => {
         // Ensure Redis is connected before tests start
@@ -22,8 +22,8 @@ describe("Market BUY Order Integration Flow", () => {
             .send({
                 email: testEmail,
                 password: 'password123',
-                username: `int_user_${Date.now()}`,
-                phone: `777${Date.now().toString().slice(-7)}`,
+                username: "orders_tester",
+                phone: "7770000007",
                 fullName: "Integration User"
             });
 
@@ -45,6 +45,9 @@ describe("Market BUY Order Integration Flow", () => {
     });
 
     afterAll(async () => {
+        if (token) {
+            await request(app).delete("/api/user/me").set("Authorization", `Bearer ${token}`);
+        }
         if (redis.isOpen) {
             await redis.quit();
         }

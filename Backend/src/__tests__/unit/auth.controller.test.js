@@ -71,6 +71,7 @@ describe("Auth Controller Unit Tests", () => {
             expect(authService.loginUser).toHaveBeenCalledWith("test@test.com", "pass");
             expect(res.json).toHaveBeenCalledWith({
                 success: true,
+                message: "Login successful.",
                 ...mockLoginResult
             });
         });

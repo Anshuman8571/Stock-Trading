@@ -11,13 +11,13 @@ jest.mock("../../modules/market/market.snapshot.service", () => ({
 describe("Wallet & Trading Integration Flow", () => {
     let token;
     let userId;
-    const testEmail = `wallet_test_${Date.now()}@gmail.com`;
+    const testEmail = `wallet_test_fixed@gmail.com`;
     const testUser = {
         email: testEmail,
         password: "Password123",
-        username: `walletuser_${Date.now()}`,
+        username: 'wallet_tester',
         fullName: "Wallet Tester",
-        phone: `888${Date.now().toString().slice(-7)}`
+        phone: '8880000002'
     };
 
     beforeAll(async () => {
@@ -38,6 +38,9 @@ describe("Wallet & Trading Integration Flow", () => {
     });
 
     afterAll(async () => {
+        if (token) {
+            await request(app).delete("/api/user/me").set("Authorization", `Bearer ${token}`);
+        }
         if (redis.isOpen) await redis.quit();
     });
 

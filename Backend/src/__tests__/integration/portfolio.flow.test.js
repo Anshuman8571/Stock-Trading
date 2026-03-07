@@ -8,15 +8,15 @@ describe('Portfolio Flow Integration Tests', () => {
     let userId;
 
     beforeAll(async () => {
-        const testEmail = `port_test_${Date.now()}@test.com`;
+        const testEmail = `port_tester@test.com`;
 
         // 1. Register a real user
         await request(app).post('/api/auth/register').send({
-            username: `port_tester_${Date.now()}`,
+            username: `port_tester`,
             email: testEmail,
             password: 'password123',
             fullName: 'Portfolio Tester',
-            phone: `333${Date.now().toString().slice(-7)}`
+            phone: `3330000004`
         });
 
         // 2. Login
@@ -30,6 +30,9 @@ describe('Portfolio Flow Integration Tests', () => {
     });
 
     afterAll(async () => {
+        if (validToken) {
+            await request(app).delete('/api/user/me').set('Authorization', `Bearer ${validToken}`);
+        }
         if (db.close) await db.close();
     });
 

@@ -2,16 +2,16 @@ const db = require("../../config/db")
 const bcrypt = require("bcrypt");
 const errorHandler = require("../../middleware/globalErrorHandler");
 
-const SALT_ROUNDS = parseInt(process.env.SALT_ROUNDS || 10, 10); 
+const SALT_ROUNDS = parseInt(process.env.SALT_ROUNDS || 10, 10);
 
 async function getUserById(id) {
     const q = `SELECT id, username, email FROM users WHERE id = $1`;
-    const { rows } = await db.query(q, [ id ]);
+    const { rows } = await db.query(q, [id]);
     return rows[0] || null;
 }
 
 async function userUpdate(userId, username, email) {
-    const q =  `
+    const q = `
         UPDATE users
         SET username = COALESCE($2, username),
             email = COALESCE($3, email)
@@ -19,7 +19,7 @@ async function userUpdate(userId, username, email) {
         RETURNING id, username, email
     `;
 
-    const { rows } = await db.query(q,[ userId, username, email ]);
+    const { rows } = await db.query(q, [userId, username, email]);
     return rows[0];
 }
 
@@ -29,23 +29,48 @@ async function changePassword(userId, oldPassword, newPassword) {
         FROM users 
         WHERE id = $1    
     `
-    const { rows } = await db.query(q,[ userId ])
-    if(rows.length === 0){
+    const { rows } = await db.query(q, [userId])
+    if (rows.length === 0) {
         const err = new Error("User not found")
         err.status = 404
         throw err;
     }
 
     const isMatch = await bcrypt.compare(oldPassword, rows[0].password)
-    if(!isMatch){
+    if (!isMatch) {
         const err = new Error("Old password is wrong.")
         err.status = 400
         throw err;
     }
 
-    const newHash = await bcrypt.hash(newPassword,SALT_ROUNDS)
-    await db.query(`UPDATE users SET password = $1 WHERE id = $2`,[ newHash, userId ])
+    const newHash = await bcrypt.hash(newPassword, SALT_ROUNDS)
+    await db.query(`UPDATE users SET password = $1 WHERE id = $2`, [newHash, userId])
     return true;
 }
 
-module.exports = { changePassword, userUpdate, getUserById }
+async function deleteUserById(userId) {
+    const client = await db.getClient();
+    try {
+        await client.query("BEGIN");
+
+        await client.query("DELETE FROM otp_codes WHERE user_id = $1", [userId]);
+        await client.query("DELETE FROM refresh_tokens WHERE user_id = $1", [userId]);
+        await client.query("DELETE FROM notifications WHERE user_id = $1", [userId]);
+        await client.query("DELETE FROM holdings WHERE user_id = $1", [userId]);
+        await client.query("DELETE FROM orders WHERE user_id = $1", [userId]);
+        await client.query("DELETE FROM portfolios WHERE user_id = $1", [userId]);
+        await client.query("DELETE FROM users WHERE id = $1", [userId]);
+
+        await client.query("COMMIT");
+        return { success: true, message: "Account deleted successfully." };
+    } catch (error) {
+        await client.query("ROLLBACK");
+        const err = new Error("Failed to delete account: " + error.message);
+        err.status = 500;
+        throw err;
+    } finally {
+        client.release();
+    }
+}
+
+module.exports = { changePassword, userUpdate, getUserById, deleteUserById }

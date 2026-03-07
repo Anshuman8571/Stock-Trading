@@ -8,15 +8,15 @@ describe('User Flow Integration Tests', () => {
     let userId;
 
     beforeAll(async () => {
-        const testEmail = `user_test_${Date.now()}@test.com`;
+        const testEmail = `user_tester@test.com`;
 
         // 1. Register a real user
         await request(app).post('/api/auth/register').send({
-            username: `tester_${Date.now()}`,
+            username: `user_tester`,
             email: testEmail,
             password: 'password123',
             fullName: 'Test O',
-            phone: `222${Date.now().toString().slice(-7)}`
+            phone: `2220000006`
         });
 
         // 2. Login to get valid token
@@ -30,6 +30,9 @@ describe('User Flow Integration Tests', () => {
     });
 
     afterAll(async () => {
+        if (validToken) {
+            await request(app).delete('/api/user/me').set('Authorization', `Bearer ${validToken}`);
+        }
         if (db.close) await db.close();
     });
 
@@ -53,13 +56,13 @@ describe('User Flow Integration Tests', () => {
 
     describe('POST /api/user/update-user', () => {
         it('should update user profile successfully', async () => {
-            const updatedUsername = `updated_${Date.now()}`;
+            const updatedUsername = `updated_user`;
             const res = await request(app)
                 .post('/api/user/update-user')
                 .set('Authorization', `Bearer ${validToken}`)
                 .send({
                     username: updatedUsername,
-                    email: `updated_${Date.now()}@test.com`
+                    email: `updated_user@test.com`
                 });
 
             expect(res.status).toBe(200);

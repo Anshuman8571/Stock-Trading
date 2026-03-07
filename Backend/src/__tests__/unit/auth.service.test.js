@@ -30,12 +30,12 @@ describe("Auth Service Unit Tests", () => {
             db.query.mockResolvedValueOnce({ rows: [] }); // Check existing user
             bcrypt.hash.mockResolvedValue(hashedPassword);
             db.query.mockResolvedValueOnce({ rows: [] }); // Insert execution
-            
+
             const result = await authService.registerUser(mockUser);
 
             expect(db.query).toHaveBeenCalledTimes(2);
             expect(bcrypt.hash).toHaveBeenCalledWith(mockUser.password, 10);
-            
+
             // FIX: Expect user details, not tokens
             expect(result).toHaveProperty("email", mockUser.email);
             expect(result).toHaveProperty("username", mockUser.username);
@@ -46,7 +46,7 @@ describe("Auth Service Unit Tests", () => {
             const mockUser = { email: "existing@example.com" };
             db.query.mockResolvedValueOnce({ rows: [mockUser] });
 
-            await expect(authService.registerUser(mockUser)).rejects.toThrow("User already exists");
+            await expect(authService.registerUser(mockUser)).rejects.toThrow("User already exist with this username or email");
         });
     });
 

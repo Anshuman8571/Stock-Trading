@@ -13,15 +13,15 @@ describe('AI Flow Integration Tests', () => {
     let userId;
 
     beforeAll(async () => {
-        const testEmail = `ai_test_${Date.now()}@test.com`;
+        const testEmail = `ai_tester@test.com`;
 
         // 1. Register a real user
         await request(app).post('/api/auth/register').send({
-            username: `ai_tester_${Date.now()}`,
+            username: `ai_tester`,
             email: testEmail,
             password: 'password123',
             fullName: 'AI Tester',
-            phone: `555${Date.now().toString().slice(-7)}`
+            phone: `5550000005`
         });
 
         // 2. Login
@@ -35,6 +35,9 @@ describe('AI Flow Integration Tests', () => {
     });
 
     afterAll(async () => {
+        if (validToken) {
+            await request(app).delete('/api/user/me').set('Authorization', `Bearer ${validToken}`);
+        }
         if (db.close) await db.close();
     });
 
