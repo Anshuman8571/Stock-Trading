@@ -6,13 +6,13 @@ import * as AuthContext from '../context/AuthContext.jsx';
 
 // 1. Mock the Auth Context
 vi.mock('../context/AuthContext.jsx', () => ({
-  useAuth: vi.fn(),
+    useAuth: vi.fn(),
 }));
 
 // 2. Mock the Google OAuth library to avoid resolution errors during testing
 vi.mock('@react-oauth/google', () => ({
-  useGoogleLogin: vi.fn(() => vi.fn()),
-  GoogleOAuthProvider: ({ children }) => <div>{children}</div>
+    useGoogleLogin: vi.fn(() => vi.fn()),
+    GoogleOAuthProvider: ({ children }) => <div>{children}</div>
 }));
 
 describe('Login Component Integration', () => {
@@ -39,7 +39,7 @@ describe('Login Component Integration', () => {
         expect(screen.getByPlaceholderText('you@example.com')).toBeInTheDocument();
         expect(screen.getByPlaceholderText('••••••••')).toBeInTheDocument();
         // Check for the Google button text instead of role to be safer with SVGs
-        expect(screen.getByText('Continue with Google')).toBeInTheDocument();
+        expect(screen.getByText(/CONTINUE WITH GOOGLE/i)).toBeInTheDocument();
     });
 
     it('should update state on input changes', () => {

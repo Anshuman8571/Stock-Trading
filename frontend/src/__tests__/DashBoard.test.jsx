@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import Dashboard from '../pages/Dashboard';
 import * as AuthContext from '../context/AuthContext';
 import api from '../api/axios';
+import { usePortfolioStore } from '../store/usePortfolioStore';
 
 // Mock Auth Context
 vi.mock('../context/AuthContext', () => ({
@@ -17,6 +18,11 @@ vi.mock('../api/axios', () => ({
     }
 }));
 
+// Mock Zustand Store
+vi.mock('../store/usePortfolioStore', () => ({
+    usePortfolioStore: vi.fn()
+}));
+
 describe('Dashboard Component API Integration', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -26,9 +32,13 @@ describe('Dashboard Component API Integration', () => {
     });
 
     it('shows loading state on initial render', () => {
-        // Return a promise that never resolves to keep it in loading state
-        api.get.mockImplementation(() => new Promise(() => {})); 
-        
+        usePortfolioStore.mockReturnValue({
+            analytics: null,
+            walletBalance: 0,
+            loading: true,
+            fetchAnalytics: vi.fn()
+        });
+
         render(
             <BrowserRouter>
                 <Dashboard />
@@ -39,18 +49,18 @@ describe('Dashboard Component API Integration', () => {
     });
 
     it('renders portfolio analytics successfully after API call', async () => {
-        // Mock successful backend response
-        api.get.mockResolvedValueOnce({
-            data: {
-                analytics: {
-                    currentValue: 150000,
-                    investedValue: 100000,
-                    pnl: 50000,
-                    breakdown: [
-                        { symbol: 'RELIANCE', quantity: 10, avg_price: 2500, current_value: 30000 }
-                    ]
-                }
-            }
+        usePortfolioStore.mockReturnValue({
+            analytics: {
+                currentValue: 150000,
+                investedValue: 100000,
+                pnl: 50000,
+                breakdown: [
+                    { symbol: 'RELIANCE', quantity: 10, avg_price: 2500, current_value: 30000 }
+                ]
+            },
+            walletBalance: 50000,
+            loading: false,
+            fetchAnalytics: vi.fn()
         });
 
         render(
@@ -61,8 +71,9 @@ describe('Dashboard Component API Integration', () => {
 
         // Wait for loading to finish and data to populate
         await waitFor(() => {
-            // Checks if user info rendered
-            expect(screen.getByText(/Welcome back, ProTrader123/i)).toBeInTheDocument();
+            // Checks if user info rendered (split because of internal span)
+            expect(screen.getByText(/Welcome back,/i)).toBeInTheDocument();
+            expect(screen.getByText('ProTrader123')).toBeInTheDocument();
             // Checks if the mocked asset loaded in the table
             expect(screen.getByText('RELIANCE')).toBeInTheDocument();
         });

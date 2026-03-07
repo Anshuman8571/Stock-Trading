@@ -38,15 +38,15 @@ describe('Register Component Integration', () => {
         const Phone = container.querySelector('input[name="phone"]');
         const passwordInput = container.querySelector('input[name="password"]');
         const confirmInput = container.querySelector('input[name="confirmPassword"]');
-        
-        fireEvent.change(FullName, { target: {value: "Anshu"} });
-        fireEvent.change(UserName, { target: {value: "anshu871"} });
+
+        fireEvent.change(FullName, { target: { value: "Anshu" } });
+        fireEvent.change(UserName, { target: { value: "anshu871" } });
         fireEvent.change(Email, { target: { value: "anshu@example.com" } });
         fireEvent.change(Phone, { target: { value: "1234567890" } })
         fireEvent.change(passwordInput, { target: { value: 'pass123' } });
         fireEvent.change(confirmInput, { target: { value: 'pass456' } });
 
-        fireEvent.click(screen.getByRole('button', { name: /Create Account/i }));
+        fireEvent.click(screen.getByRole('button', { name: /CREATE SECURE ACCOUNT/i }));
 
         await waitFor(() => {
             expect(toast.error).toHaveBeenCalledWith('Passwords do not match');
@@ -77,7 +77,7 @@ describe('Register Component Integration', () => {
         fireEvent.change(passwordInput, { target: { value: 'SecurePass1!' } });
         fireEvent.change(confirmInput, { target: { value: 'SecurePass1!' } });
 
-        fireEvent.click(screen.getByRole('button', { name: /Create Account/i }));
+        fireEvent.click(screen.getByRole('button', { name: /CREATE SECURE ACCOUNT/i }));
 
         await waitFor(() => {
             expect(api.post).toHaveBeenCalledWith('/auth/register', expect.any(Object));
